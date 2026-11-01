@@ -1,0 +1,17 @@
+{
+  "A13Rate.csv": {
+    "bytes": 260563,
+    "fetched": "2026-09-17",
+    "licence": "政府資料開放授權條款-第1版",
+    "sha256": "61081da8d1be0065a8d59354a8d9d2b0778c10e6007028e1f219753d9cd20c24",
+    "url": "https://www.cbc.gov.tw/public/data/OpenData/A13Rate.csv"
+  },
+  "webF1.csv": {
+    "bytes": 1456,
+    "catalogue": "https://data.gov.tw/dataset/6022",
+    "fetched": "2026-09-17",
+    "licence": "政府資料開放授權條款-第1版",
+    "sha256": "2b07898ec156f16c5f5232657f330a8b21b85c9cb026b8e98994f92b46415d78",
+    "url": "https://www.cbc.gov.tw/Public/Data/opendata/webF1.csv"
+  }
+}

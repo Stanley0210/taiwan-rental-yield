@@ -1,8 +1,9 @@
 # 實價收益 — the visible range of Taiwan's rental yield
 
 **Live page:** https://stanley0210.github.io/taiwan-rental-yield/
-**Paper (PDF):** [`docs/HOUSING_FINAL_REPORT.pdf`](docs/HOUSING_FINAL_REPORT.pdf) ·
-**Technical report:** [`housing_report.pdf`](housing_report.pdf)
+**Paper (PDF, v1.0):** [`docs/HOUSING_FINAL_REPORT.pdf`](docs/HOUSING_FINAL_REPORT.pdf) ·
+**Technical report:** [`housing_report.pdf`](housing_report.pdf) ·
+**Open question:** [`docs/SOCIAL_HOUSING_NOTE.md`](docs/SOCIAL_HOUSING_NOTE.md)
 
 A rental yield needs two facts about the *same* building: what it sold for and
 what it rents for. Taiwan's 實價登錄 publishes both. For most buildings it
@@ -65,6 +66,25 @@ difference came from the code or from the data.
 
 [`docs/REPRODUCING.md`](docs/REPRODUCING.md) is the version table — one row per
 payload version, each stating what moved and why, including the corrections.
+
+## Rebuilding it
+
+```bash
+pip install -r requirements.txt          # pandas, numpy, reportlab, fonttools
+python src/underwrite.py                 # rebuilds housing_data.json
+python src/housing_final_report.py       # rebuilds the paper
+pytest tests/ -q                         # 919 tests
+```
+
+`src/` is the pipeline: `underwrite.py` builds the payload, `fetch_lvr.py`
+cleans the registry, `normalize_addr.py` is the join key that decides when two
+records are the same building, and `fetch_moi.py` / `fetch_cbc.py` pull the
+official reference series pinned under `data/ref/`.
+
+The season archives themselves are ~200 MB and are not committed;
+`docs/REPRODUCING.md` says where to get them and how to tell a data difference
+from a code difference. `bin/rebuild-housing.sh` rebuilds and compares against
+the committed hash.
 
 ## Source and licence
 

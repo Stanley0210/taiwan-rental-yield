@@ -1,0 +1,21 @@
+{
+ "low_use_by_age.csv": {
+  "url": "https://web.archive.org/web/20240602033751id_/https://pip.moi.gov.tw/Upload/Statistics/year/111Y/111Y_%E8%A1%A82-3-2%E4%BD%8E%E5%BA%A6%E4%BD%BF%E7%94%A8(%E7%94%A8%E9%9B%BB)%E4%BD%8F%E5%AE%85%E5%8D%8A%E5%B9%B4%E5%A0%B1%E8%A1%A8-%E6%8C%89%E5%B1%8B%E9%BD%A1%E5%88%86(%E4%B8%8A%E5%8D%8A%E5%B9%B4).ods; https://web.archive.org/web/20240602033801id_/https://pip.moi.gov.tw/Upload/Statistics/year/111Y/111Y_%E8%A1%A82-3-2%E4%BD%8E%E5%BA%A6%E4%BD%BF%E7%94%A8(%E7%94%A8%E9%9B%BB)%E4%BD%8F%E5%AE%85%E5%8D%8A%E5%B9%B4%E5%A0%B1%E8%A1%A8-%E6%8C%89%E5%B1%8B%E9%BD%A1%E5%88%86(%E4%B8%8B%E5%8D%8A%E5%B9%B4).ods",
+  "fetched": "2026-09-20",
+  "snapshots": {
+   "111H1": {
+    "url": "https://web.archive.org/web/20240602033751id_/https://pip.moi.gov.tw/Upload/Statistics/year/111Y/111Y_%E8%A1%A82-3-2%E4%BD%8E%E5%BA%A6%E4%BD%BF%E7%94%A8(%E7%94%A8%E9%9B%BB)%E4%BD%8F%E5%AE%85%E5%8D%8A%E5%B9%B4%E5%A0%B1%E8%A1%A8-%E6%8C%89%E5%B1%8B%E9%BD%A1%E5%88%86(%E4%B8%8A%E5%8D%8A%E5%B9%B4).ods",
+    "original": "https://pip.moi.gov.tw/Upload/Statistics/year/111Y/111Y_%E8%A1%A82-3-2%E4%BD%8E%E5%BA%A6%E4%BD%BF%E7%94%A8(%E7%94%A8%E9%9B%BB)%E4%BD%8F%E5%AE%85%E5%8D%8A%E5%B9%B4%E5%A0%B1%E8%A1%A8-%E6%8C%89%E5%B1%8B%E9%BD%A1%E5%88%86(%E4%B8%8A%E5%8D%8A%E5%B9%B4).ods",
+    "wayback": "20240602033751",
+    "sha256": "79a2e13f95ddace8b0e3a74a431be020cf4024fc5ab6d75547b07a8891495ca0"
+   },
+   "111H2": {
+    "url": "https://web.archive.org/web/20240602033801id_/https://pip.moi.gov.tw/Upload/Statistics/year/111Y/111Y_%E8%A1%A82-3-2%E4%BD%8E%E5%BA%A6%E4%BD%BF%E7%94%A8(%E7%94%A8%E9%9B%BB)%E4%BD%8F%E5%AE%85%E5%8D%8A%E5%B9%B4%E5%A0%B1%E8%A1%A8-%E6%8C%89%E5%B1%8B%E9%BD%A1%E5%88%86(%E4%B8%8B%E5%8D%8A%E5%B9%B4).ods",
+    "original": "https://pip.moi.gov.tw/Upload/Statistics/year/111Y/111Y_%E8%A1%A82-3-2%E4%BD%8E%E5%BA%A6%E4%BD%BF%E7%94%A8(%E7%94%A8%E9%9B%BB)%E4%BD%8F%E5%AE%85%E5%8D%8A%E5%B9%B4%E5%A0%B1%E8%A1%A8-%E6%8C%89%E5%B1%8B%E9%BD%A1%E5%88%86(%E4%B8%8B%E5%8D%8A%E5%B9%B4).ods",
+    "wayback": "20240602033801",
+    "sha256": "d63dbdeebc37e2179edb3e29bf9040d28505712c878020e4e850783182d7ef38"
+   }
+  },
+  "note": "內政部 表2-3-2 低度使用(用電)住宅半年報表-按屋齡分, read from the Internet Archive because pip.moi.gov.tw is not reachable from every network and no later edition is archived"
+ }
+}

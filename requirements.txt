@@ -1,0 +1,6 @@
+pandas
+numpy
+reportlab
+fonttools
+pypdf
+requests
