@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>實價收益 — 全臺灣租金報酬率的可見範圍</title>
+<meta name="description" content="用內政部實價登錄的同棟成交與成交租賃配對，計算全臺灣 22 縣市的租金報酬率，並揭露這個數字實際上只涵蓋多少房屋存量。">
+<link rel="stylesheet" href="housing.css">
+<script>
+/* Theme before first paint: a flash of the wrong theme on a page whose charts
+   are painted from CSS variables would repaint every mark. */
+(function () {
+  try {
+    var t = localStorage.getItem('hs-theme');
+    if (t) document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+})();
+
+/* Evict the stock app's service worker.
+ *
+ * The stock SPA registers a service worker at this same origin with a
+ * `quants-v*` precache. Any visitor who ever loaded the old site keeps that
+ * worker, and it then serves them STALE housing.js / housing_data.json --
+ * silently, and forever, because the housing page never updates that cache.
+ * This was caught in dev serving a 52 KB housing.js against a 64 KB file on
+ * disk, and a payload missing half its keys.
+ *
+ * The housing surface is deliberately un-cached (every route sends
+ * Cache-Control: no-store), so there is nothing here for a worker to do except
+ * get in the way. Unregister on sight.
+ */
+(function () {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.getRegistrations().then(function (regs) {
+    if (!regs.length) return;
+    regs.forEach(function (r) { r.unregister(); });
+    if (window.caches && caches.keys) {
+      caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+    }
+  }).catch(function () {});
+})();
+</script>
+</head>
+<body>
+<div id="hs-root"></div>
+<script src="housing.js"></script>
+</body>
+</html>

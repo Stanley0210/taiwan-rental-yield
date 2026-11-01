@@ -1,0 +1,1075 @@
+/* housing.css — 實價收益 / Taipei Yield Atlas
+ *
+ * Self-contained on purpose. This page is a standalone surface, so it does not
+ * pull css/quants-ds.css (30 KB of stock-product components it would never use)
+ * — but it reuses that file's token NAMES and values, so the two remain visually
+ * continuous and can be merged later without a repaint.
+ *
+ * Theme: light is defined on bare :root. Dark is redefined twice — once under
+ * prefers-color-scheme (guarded so an explicit light stamp still wins) and once
+ * under [data-theme="dark"] so the toggle wins in both directions. No colour is
+ * ever defined ONLY inside a media query.
+ *
+ * Series colours (--s1..--s3) carry 建物型態 identity across every chart. They
+ * are assigned in fixed order and never cycled. --s2 and --s3 sit below 3:1
+ * against the light surface, so every chart that uses them ships direct labels
+ * and the table view — that is a hard requirement, not a preference.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Narrow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
+/* ══════════════════════════════════════════════════════════════════════
+   INK & PAPER.  One ink, one paper.
+
+   Every grey that encodes a VALUE is countable lines — density is hatch
+   PITCH, never opacity and never a flat fill. Token NAMES are unchanged
+   throughout this file so the ~3,000 call sites keep working; only the
+   values move. --accent no longer means blue, it means "the interactive
+   role", which in one ink is carried by an underline and by weight.
+
+   WHAT THIS COSTS, stated plainly: a blue luminance ramp is faster to
+   rank than hatch, and supports more distinguishable steps. That is a
+   real loss on the choropleth. It is accepted for two reasons — the
+   reader is given the NUMBER on every mark, so hatch is never the sole
+   carrier; and a coarser ramp is honest on a page whose entire argument
+   is that this figure rests on 6% of the housing stock.
+   ══════════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: light;
+  --ink: #191814;
+  --paper: #f7f5ee;
+
+  --bg: #f7f5ee;
+  --surface: #f7f5ee;      /* no raised surfaces — the page IS the paper */
+  --surface2: #efece2;     /* interaction states only: hover, sticky head. */
+  --surface3: #e3dfd1;     /* affordances, not encoded values. */
+  --border: rgba(25,24,20,.42);   /* hairlines are ink at reduced pressure */
+  --border2: rgba(25,24,20,.19);
+  --text: #191814;
+  --text2: #3b3931;
+  --muted: #6e6a5c;
+  /* MEASURED, not chosen. At the old #9a9587 this tier ran 2.53-2.74:1 against
+     paper on 11.5-12px text — the ladder rung numbers and the sample-size
+     captions, which are exactly the figures this page insists a reader should
+     see. There is no room on this ground between "passes 4.5:1" and --muted, so
+     the two tiers have converged and that is the honest outcome: a quieter grey
+     that a reader cannot read is not a tier, it is a defect. */
+  --subtle: #6f6a5b;
+
+  --accent: #191814;
+  --accent-soft: #ebe7da;
+
+  /* 建物型態 is THREE CATEGORIES, not an ordered scale. Density encodes
+     order and must not be spent on categories, so the three types are
+     separated by TEXTURE TYPE instead — hatch / cross-hatch / stipple.
+     Texture kind is categorical the way angle is; density stays ordinal.
+     These stay defined as ink so any residual swatch still renders. */
+  --s1: #191814;   /* 住宅大樓 — hatch   */
+  --s2: #191814;   /* 華廈     — cross   */
+  --s3: #191814;   /* 公寓     — stipple */
+  --s1-soft: #efece2;
+  --s2-soft: #efece2;
+  --s3-soft: #efece2;
+
+  /* the ladder's deltas are SIGNED numbers, so the sign carries the
+     direction and no hue is needed. */
+  --pos: #191814;
+  --neg: #191814;
+  --grid: rgba(25,24,20,.19);
+  --dim: #9a9587;
+
+  /* ── the tone system ──
+     ONE page-wide hatch angle. Never 0 or 90: axis-aligned hatch fights
+     the rules and flattens the drawing. The cross pass sits +30deg off,
+     which is what reads as pen-work — 90deg reads as graph paper, and
+     under 15deg moires on screen. */
+  --hA: 62deg; --hB: 32deg; --nib: .9px;
+  --p1: 9px; --p2: 6.4px; --p3: 4.4px; --p4: 3.2px;
+  /* pitch in PIXELS, for CSS surfaces. The map cannot use these: its
+     user unit is a metre, so its pattern tiles are sized from mpp in
+     commit(). See HATCH_PX in housing.js. */
+  --hx1: repeating-linear-gradient(var(--hA),var(--ink) 0 var(--nib),transparent var(--nib) var(--p1));
+  --hx2: repeating-linear-gradient(var(--hA),var(--ink) 0 var(--nib),transparent var(--nib) var(--p2));
+  --hx3: repeating-linear-gradient(var(--hA),var(--ink) 0 var(--nib),transparent var(--nib) var(--p2)),
+         repeating-linear-gradient(var(--hB),var(--ink) 0 calc(var(--nib)*.8),transparent calc(var(--nib)*.8) var(--p2));
+  --hx4: repeating-linear-gradient(var(--hA),var(--ink) 0 var(--nib),transparent var(--nib) var(--p3)),
+         repeating-linear-gradient(var(--hB),var(--ink) 0 calc(var(--nib)*.8),transparent calc(var(--nib)*.8) var(--p3));
+  --hx5: repeating-linear-gradient(var(--hA),var(--ink) 0 var(--nib),transparent var(--nib) var(--p4)),
+         repeating-linear-gradient(var(--hB),var(--ink) 0 calc(var(--nib)*.8),transparent calc(var(--nib)*.8) var(--p3)),
+         repeating-linear-gradient(178deg,var(--ink) 0 calc(var(--nib)*.6),transparent calc(var(--nib)*.6) var(--p4));
+
+  /* three pen weights. a fourth makes it illustration, not sketch;
+     emphasis beyond --w-press is a SECOND PASS, never a wider line. */
+  --w-whisper: .6px; --w-line: 1.1px; --w-press: 2px; --over: 7px;
+  --constr: rgba(25,24,20,.17);
+
+  --sp1: 4px;  --sp2: 8px;  --sp3: 12px; --sp4: 16px; --sp5: 24px;
+  --sp6: 32px; --sp7: 48px; --sp8: 64px; --sp9: 96px;
+  /* a crossed corner and a rounded corner cannot both be true. */
+  --radius: 0; --radius-sm: 0;
+  --shadow: none;
+  --shadow-md: none;
+  --maxw: 1120px;
+  --prose: 660px;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* THE NEGATIVE — see the [data-theme="dark"] block below for why the
+     pitches open rather than simply inverting. */
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ink: #f2efe6; --paper: #131211;
+    --bg: #131211;
+    --surface: #131211;
+    --surface2: #1e1c1a;
+    --surface3: #2a2724;
+    --border: rgba(242,239,230,.34);
+    --border2: rgba(242,239,230,.16);
+    --text: #f2efe6;
+    --text2: #d6d2c6;
+    --muted: #9a9589;
+    /* 3.15-3.47:1 at the old value. Light ink on a dark ground needs to go
+       LIGHTER to gain contrast, not darker — the inverse of the light fix. */
+    --subtle: #8a8478;
+    --accent: #f2efe6;
+    --accent-soft: #242118;
+    --s1: #f2efe6;
+    --s2: #f2efe6;
+    --s3: #f2efe6;
+    --s1-soft: #1e1c1a;
+    --s2-soft: #1e1c1a;
+    --s3-soft: #1e1c1a;
+    --pos: #f2efe6;
+    --neg: #f2efe6;
+    --grid: rgba(242,239,230,.16);
+    --dim: #6e6a61;
+    --nib: .75px; --p1: 12px; --p2: 8.6px; --p3: 5.9px; --p4: 4.3px;
+    --w-whisper: .5px; --w-line: .95px; --w-press: 1.7px;
+    --constr: rgba(242,239,230,.13);
+    --shadow: none;
+    --shadow-md: none;
+  }
+}
+
+/* THE NEGATIVE. Not a token swap. Light ink on a dark ground blooms
+   optically and reads roughly 1.4 density steps darker at identical
+   pitch, so every pitch OPENS ~35% and every nib THINS ~15%. Skip that
+   and the dark theme is not this drawing inverted, it is a different and
+   much heavier drawing. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #f2efe6; --paper: #131211;
+  --bg: #131211;
+  --surface: #131211;
+  --surface2: #1e1c1a;
+  --surface3: #2a2724;
+  --border: rgba(242,239,230,.34);
+  --border2: rgba(242,239,230,.16);
+  --text: #f2efe6;
+  --text2: #d6d2c6;
+  --muted: #9a9589;
+  /* see the prefers-color-scheme block above */
+  --subtle: #8a8478;
+  --accent: #f2efe6;
+  --accent-soft: #242118;
+  --s1: #f2efe6;
+  --s2: #f2efe6;
+  --s3: #f2efe6;
+  --s1-soft: #1e1c1a;
+  --s2-soft: #1e1c1a;
+  --s3-soft: #1e1c1a;
+  --pos: #f2efe6;
+  --neg: #f2efe6;
+  --grid: rgba(242,239,230,.16);
+  --dim: #6e6a61;
+  --nib: .75px; --p1: 12px; --p2: 8.6px; --p3: 5.9px; --p4: 4.3px;
+  --w-whisper: .5px; --w-line: .95px; --w-press: 1.7px;
+  --constr: rgba(242,239,230,.13);
+  --shadow: none;
+  --shadow-md: none;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Archivo', 'Noto Sans TC', 'PingFang TC',
+               'Microsoft JhengHei', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.68;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+:focus-visible { outline: var(--w-press) solid var(--text); outline-offset: 3px; }
+
+.num, tbody td.num, .hs-hero-fig, .hs-stat-v {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ── shell ─────────────────────────────────────────────────────────── */
+.hs-wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--sp5); }
+.hs-prose { max-width: var(--prose); }
+
+.hs-top {
+  position: sticky; top: 0; z-index: 40;
+  background: var(--bg);
+  border-bottom: var(--w-line) solid var(--text);
+}
+.hs-top-in {
+  max-width: var(--maxw); margin: 0 auto; padding: var(--sp3) var(--sp5);
+  display: flex; align-items: center; gap: var(--sp4);
+}
+/* No handwriting anywhere on this page, and that is a limit worth stating
+   rather than hiding: Google Fonts has no usable Traditional Chinese hand, and
+   this brand is Chinese. Setting it in Caveat did nothing but drop the glyphs
+   into whatever cursive fallback the OS happened to own. A drawing whose
+   lettering is drafted and whose signature is absent is still a drawing; one
+   with an English signature bolted to a Chinese page is a costume. */
+.hs-brand { font-family: 'Archivo Narrow', 'Noto Sans TC', 'PingFang TC', sans-serif;
+  font-weight: 700; letter-spacing: .04em; font-size: 16px; }
+.hs-brand span { color: var(--muted); font-weight: 500; margin-left: var(--sp2); }
+.hs-top-sp { flex: 1; }
+.hs-btn {
+  appearance: none; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text2); font: inherit; font-size: 13px; font-weight: 500;
+  padding: 5px 11px; cursor: pointer;
+  transition: border-color 140ms, color 140ms, background 140ms;
+}
+.hs-btn:hover { border-color: var(--text); color: var(--text); background: var(--surface2); }
+.hs-btn { white-space: nowrap; flex: 0 0 auto; }
+
+/* ── section rhythm ────────────────────────────────────────────────── */
+.hs-sec { padding: var(--sp9) 0; border-top: var(--w-line) solid var(--text); }
+.hs-sec:first-of-type { border-top: 0; }
+.hs-eyebrow {
+  font-family: 'Archivo Narrow', 'Noto Sans TC', sans-serif;
+  font-size: 12px; font-weight: 600; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: var(--sp3); margin-bottom: var(--sp4);
+}
+.hs-eyebrow::before {
+  content: attr(data-n);
+  font-family: 'IBM Plex Mono', monospace; color: var(--text);
+  box-shadow: inset 0 0 0 var(--w-whisper) var(--text); padding: 2px 7px;
+  letter-spacing: 0;
+}
+h1, h2, h3 { line-height: 1.16; letter-spacing: -.005em; font-weight: 700;
+  font-family: 'Archivo Narrow', 'Noto Sans TC', 'PingFang TC', sans-serif;
+  text-wrap: balance; }
+h2 { font-size: clamp(26px, 3.4vw, 38px); margin-bottom: var(--sp4); }
+h3 { font-size: 18px; margin-bottom: var(--sp3); }
+p { color: var(--text2); margin-bottom: var(--sp4); }
+p.lede { font-size: 18px; color: var(--text); }
+strong { color: var(--text); font-weight: 650; }
+a { color: var(--text); text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-thickness: from-font; }
+
+/* ── hero ──────────────────────────────────────────────────────────── */
+/* padding-BLOCK, not the shorthand. This element is `class="hs-hero hs-wrap"`,
+   and .hs-hero has the same specificity as .hs-wrap but comes later in the
+   file — so a `padding` shorthand here won outright and set the page gutter to
+   zero. The hero has been flush against the window edge at every width. */
+.hs-hero { padding-block: var(--sp9) var(--sp8); }
+.hs-hero h1 {
+  font-size: clamp(30px, 4.6vw, 52px); margin-bottom: var(--sp5);
+  max-width: 15ch; font-weight: 800;
+}
+.hs-hero-fig {
+  font-size: clamp(72px, 13vw, 148px); font-weight: 600; line-height: .92;
+  letter-spacing: -.04em; color: var(--text);
+  display: block; transition: color 200ms;
+}
+.hs-hero-fig sup { font-size: .34em; font-weight: 500; vertical-align: super; margin-left: .06em; }
+.hs-hero-cap { color: var(--muted); font-size: 14px; margin-top: var(--sp3); max-width: 46ch; }
+.hs-hero-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: var(--sp7); align-items: end; }
+
+/* ── stat row ──────────────────────────────────────────────────────── */
+.hs-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: var(--sp4); margin-top: var(--sp6); }
+.hs-stat { border-left: var(--w-line) solid var(--text); padding-left: var(--sp4); }
+.hs-stat-v { font-size: 26px; font-weight: 600; letter-spacing: -.02em; display: block; }
+.hs-stat-l { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+
+/* ── cards / charts ────────────────────────────────────────────────── */
+.hs-card {
+  background: transparent; border: 0; border-left: var(--w-line) solid var(--text);
+  padding: var(--sp2) var(--sp5);
+}
+.hs-fig { margin: var(--sp6) 0 var(--sp4); }
+.hs-fig-h { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp4); margin-bottom: var(--sp2); flex-wrap: wrap; }
+.hs-fig-t { font-size: 15px; font-weight: 650; }
+.hs-fig-s { font-size: 13px; color: var(--muted); margin-bottom: var(--sp4); }
+.hs-fig-n { font-size: 12.5px; color: var(--muted); margin-top: var(--sp3); }
+.hs-scroll { overflow-x: auto; overflow-y: hidden; }
+svg { display: block; max-width: 100%; height: auto; }
+.hs-axis text { fill: var(--muted); font-size: 11px; font-family: 'IBM Plex Mono', monospace; }
+.hs-axis line, .hs-axis path { stroke: var(--grid); }
+.hs-glab { fill: var(--text2); font-size: 12px; }
+.hs-vlab { fill: var(--text); font-size: 12px; font-family: 'IBM Plex Mono', monospace; font-weight: 500; }
+
+/* legend — always present at >=2 series */
+.hs-legend { display: flex; flex-wrap: wrap; gap: var(--sp4); font-size: 12.5px; color: var(--text2); margin-bottom: var(--sp3); }
+.hs-legend b { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.hs-swatch { width: 15px; height: 11px; display: inline-block;
+  box-shadow: inset 0 0 0 var(--w-whisper) var(--text); }
+/* Two densities, for the two-series charts. Hatch, not grey: a flat tone
+   standing for a category is the one thing the tone system forbids. */
+.hs-swatch.hx-hi { background-image: var(--hx4); }
+.hs-swatch.hx-lo { background-image: var(--hx1); }
+
+/* ── the honesty ladder ────────────────────────────────────────────── */
+.hs-ladder { display: flex; flex-direction: column; gap: 2px; }
+.hs-rung {
+  display: grid; grid-template-columns: 24px minmax(0,1fr) 92px 108px;
+  align-items: center; gap: var(--sp3);
+  padding: var(--sp3) var(--sp3); border-radius: var(--radius-sm);
+  border: 1px solid transparent; cursor: pointer; text-align: left;
+  background: none; color: inherit; font: inherit; width: 100%;
+  transition: background 140ms, border-color 140ms;
+}
+.hs-rung:hover { background: var(--surface2); }
+.hs-rung[aria-current="true"] { background: var(--surface2); border-color: var(--border); }
+.hs-rung-i { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--subtle); }
+.hs-rung-t { font-size: 14px; color: var(--text); min-width: 0; }
+.hs-rung-t em { display: block; font-style: normal; font-size: 12px; color: var(--muted); }
+.hs-rung-v { font-family: 'IBM Plex Mono', monospace; font-size: 17px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.hs-rung-d { font-family: 'IBM Plex Mono', monospace; font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.hs-rung-d i { font-style: normal; display: block; color: var(--subtle); font-size: 11px; }
+.up { color: var(--pos); } .down { color: var(--neg); }
+
+/* ── table ─────────────────────────────────────────────────────────── */
+.hs-tbl-wrap { max-height: 560px; overflow: auto; border: 0;
+  border-top: var(--w-press) solid var(--text); background: transparent; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+thead th {
+  position: sticky; top: 0; z-index: 2; background: var(--surface2);
+  text-align: left; font-weight: 600; font-size: 12px; color: var(--text2);
+  padding: 10px var(--sp3); border-bottom: 1px solid var(--border);
+  white-space: nowrap; cursor: pointer; user-select: none;
+}
+thead th:hover { color: var(--text); }
+thead th[aria-sort] { color: var(--text); font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--text); }
+tbody td { padding: 9px var(--sp3); border-bottom: 1px solid var(--border2); color: var(--text2); }
+tbody td.num { text-align: right; color: var(--text); }
+tbody tr:hover td { background: var(--surface2); }
+.hs-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 7px; vertical-align: -1px; }
+.hs-controls { display: flex; gap: var(--sp3); flex-wrap: wrap; align-items: center; margin-bottom: var(--sp4); }
+.hs-input {
+  font: inherit; font-size: 13.5px; padding: 7px 12px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  min-width: 200px;
+}
+.hs-chip {
+  appearance: none; font: inherit; font-size: 13px; padding: 6px 13px;
+  border: var(--w-whisper) solid var(--border); background: transparent;
+  color: var(--text2); cursor: pointer; transition: border-color 140ms, color 140ms;
+  position: relative;
+}
+.hs-chip[aria-pressed="true"] { background: transparent; border-color: var(--text);
+  border-width: var(--w-line); color: var(--text); font-weight: 700; }
+.hs-chip[aria-pressed="true"]::after { content: ""; position: absolute;
+  left: 1px; right: -4px; bottom: -4px; height: var(--w-whisper); background: var(--text); }
+
+/* ── missing-cost slots ────────────────────────────────────────────── */
+.hs-missing { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: var(--sp3); margin-top: var(--sp5); }
+.hs-slot {
+  border: var(--w-whisper) solid var(--border);
+  padding: var(--sp4); background-image: var(--hx1); background-color: transparent;
+}
+.hs-slot-v { font-family: 'IBM Plex Mono', monospace; font-size: 22px; color: var(--dim); font-weight: 500; }
+.hs-slot-t { font-size: 13.5px; font-weight: 600; margin-top: var(--sp1); }
+.hs-slot-w { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+
+/* ── callout ───────────────────────────────────────────────────────── */
+.hs-callout {
+  border-left: var(--w-press) solid var(--text); background: transparent;
+  padding: var(--sp2) var(--sp5);
+  margin: var(--sp5) 0;
+}
+.hs-callout p:last-child { margin-bottom: 0; }
+.hs-callout p { color: var(--text); }
+
+/* ── tooltip ───────────────────────────────────────────────────────── */
+.hs-tip {
+  position: fixed; z-index: 90; pointer-events: none; opacity: 0;
+  transition: opacity 110ms; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 9px 12px; font-size: 12.5px;
+  color: var(--text); max-width: 260px; line-height: 1.5;
+}
+.hs-tip.on { opacity: 1; }
+.hs-tip b { display: block; font-size: 13px; margin-bottom: 3px; }
+.hs-tip .k { color: var(--muted); }
+.hs-tip .v { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+
+/* ── footer ────────────────────────────────────────────────────────── */
+.hs-foot { border-top: 1px solid var(--border2); padding: var(--sp7) 0 var(--sp8); color: var(--muted); font-size: 13px; }
+.hs-foot p { color: var(--muted); font-size: 13px; }
+
+.hs-hl { color: var(--text); font-weight: 700; box-shadow: inset 0 -.42em 0 var(--surface3); }
+.hs-mono-s { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); }
+
+@media (max-width: 900px) {
+  /* The brand subtitle is the first thing to go: at 375px it wrapped the header
+     to two lines and squeezed the buttons into vertical text. */
+  .hs-brand span { display: none; }
+  .hs-top-in { padding: var(--sp3) var(--sp4); gap: var(--sp2); }
+  .hs-hero-grid { grid-template-columns: 1fr; gap: var(--sp5); align-items: start; }
+  .hs-sec { padding: var(--sp8) 0; }
+  .hs-wrap { padding: 0 var(--sp4); }
+  .hs-rung { grid-template-columns: 20px minmax(0,1fr) 74px; }
+  .hs-rung-d { display: none; }
+  body { font-size: 15px; }
+
+  /* Charts scroll; they do not shrink.
+     `svg { max-width: 100% }` let every chart collapse to the viewport, and
+     the text collapsed with it: on a 375px phone the coverage charts rendered
+     their labels at 5.5px and the district ranking at 3.8px. Nobody can read
+     3.8px. Inside a scroll container a chart keeps the width it was drawn at,
+     so its 11px labels stay 11px and the reader pans -- which is what
+     .hs-scroll was for. The map is the one exception: it pans on its own. */
+  .hs-scroll > svg { max-width: none; }
+
+  .hs-scroll { -webkit-overflow-scrolling: touch; }
+  /* (a floated ::after fade was tried here as a scroll hint; it added its own
+     28px to scrollWidth and made charts that fit report as scrolling) */
+
+  /* Touch targets. 44px is the floor every accessibility guideline agrees on;
+     the mode toggle was 30px tall, the language and theme buttons 34px, the
+     map's county buttons 37px. */
+  /* The headline. `max-width: 15ch` is measured in "0" widths, which is about
+     half a CJK character -- so on a phone the H1 was allowed ~7 characters a
+     line and ran to seven lines, a full screen before the first sentence.
+     Full width, and a size that fits 12-13 characters a line at 343px. */
+  .hs-hero h1 { max-width: none; font-size: 26px; line-height: 1.25; }
+
+  .hs-btn, .hs-seg button { min-height: 44px; padding: 9px 14px; }
+  .hs-rung { min-height: 48px; }
+  input[type=range] { min-height: 44px; }
+  /* the map's county polygons are role=button too, but a polygon is the size
+     it is; the map zooms instead */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+}
+
+/* ── mode switch (simple / advanced) ───────────────────────────────── */
+.hs-seg {
+  display: inline-flex; border: var(--w-line) solid var(--text);
+  background: transparent; padding: 2px; flex: 0 0 auto;
+}
+.hs-seg button {
+  appearance: none; border: 0; background: none; font: inherit; font-size: 13px;
+  font-weight: 500; color: var(--muted); padding: 4px 13px;
+  cursor: pointer; white-space: nowrap; transition: color 140ms;
+}
+.hs-seg button[aria-pressed="true"] { background: var(--text); color: var(--paper); font-weight: 700; }
+
+/* Advanced-only sections get a hairline marker so it is obvious which content
+   the simple view is hiding, rather than the two modes looking like two sites. */
+.hs-sec[data-adv="1"] .hs-eyebrow::after {
+  content: attr(data-advlabel); font-size: 10px; letter-spacing: .08em;
+  color: var(--muted); border: var(--w-whisper) solid var(--border);
+  padding: 1px 6px; font-weight: 500;
+}
+
+/* ── assumptions panel ─────────────────────────────────────────────── */
+.hs-assume { display: grid; gap: var(--sp5); grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); }
+.hs-asm-h { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp3); }
+.hs-asm-t { font-size: 13.5px; font-weight: 600; }
+.hs-asm-v { font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.hs-asm-u { font-size: 11.5px; color: var(--subtle); }
+.hs-asm-s { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: var(--sp2); }
+input[type="range"] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 20px;
+  background: none; cursor: pointer; margin-top: var(--sp2);
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; background: var(--surface3);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 15px; height: 15px;
+  background: var(--text); margin-top: -5.5px;
+  border: 2px solid var(--surface);
+}
+input[type="range"]::-moz-range-track { height: 4px; background: var(--surface3); }
+input[type="range"]::-moz-range-thumb {
+  width: 15px; height: 15px; background: var(--text);
+  border: 2px solid var(--surface);
+}
+
+/* ── waterfall ─────────────────────────────────────────────────────── */
+.hs-wf { display: flex; flex-direction: column; gap: 3px; }
+.hs-wf-row {
+  display: grid; grid-template-columns: 132px minmax(0,1fr) 74px;
+  align-items: center; gap: var(--sp3); font-size: 13.5px;
+}
+.hs-wf-l { color: var(--text2); }
+.hs-wf-v { font-family: 'IBM Plex Mono', monospace; text-align: right; font-variant-numeric: tabular-nums; }
+.hs-wf-bar { height: 16px; position: relative; background: transparent;
+  box-shadow: inset 0 0 0 var(--w-whisper) var(--border2); }
+/* Two states, because in one ink a bar that is a yield and a bar that is a
+   deduction cannot be separated by colour. SOLID = something is there;
+   HOLLOW = something has been taken out of it. */
+.hs-wf-fill { position: absolute; top: 0; bottom: 0;
+  box-shadow: inset 0 0 0 var(--w-line) var(--text); }
+.hs-wf-fill.solid { background-image: var(--hx4); }
+.hs-wf-fill.hollow { background-image: none;
+  box-shadow: inset 0 0 0 var(--w-whisper) var(--text); }
+.hs-wf-row.total { border-top: 1px solid var(--border); padding-top: 7px; margin-top: 5px; font-weight: 650; }
+/* the flag-only bound, under the total: a second reading, not a second total */
+.hs-wf-row.muted { color: var(--muted); font-size: 12.5px; }
+.hs-wf-row.muted .hs-wf-fill { opacity: .55; }
+
+/* ── comparison strip (two big numbers side by side) ───────────────── */
+.hs-vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: var(--sp5); }
+.hs-vs-item { padding: var(--sp4) 0; }
+.hs-vs-v { font-family: 'IBM Plex Mono', monospace; font-size: clamp(30px,5vw,46px); font-weight: 600; letter-spacing: -.03em; line-height: 1; }
+.hs-vs-l { font-size: 13px; color: var(--muted); margin-top: var(--sp2); }
+.hs-vs-item.muted .hs-vs-v { color: var(--muted); }
+/* four cells: three reference rates beside the net yield; smaller so four
+   numbers do not dominate the section (the <=900px rule below still wins) */
+.hs-bm .hs-vs-v { font-size: clamp(24px,4vw,34px); }
+/* volume section: the right-censored quarter, and the three policy dates */
+.hs-vol-cens { fill: var(--subtle); fill-opacity: .35; stroke: var(--subtle); stroke-dasharray: 3 2; }
+.hs-vol-ev { stroke: var(--text); stroke-dasharray: 4 3; stroke-width: 1; }
+.hs-vol-evn { font-size: 11px; fill: var(--text); }
+
+@media (max-width: 900px) {
+  /* Four stat tiles stacked one per row, ~230px each: 900px of scrolling for
+     four numbers. minmax(180px, 1fr) cannot fit two at 343px. Two by two.
+     This block sits AFTER the base rule on purpose -- an earlier copy in the
+     first mobile block lost the cascade to it and changed nothing. */
+  .hs-vs { grid-template-columns: 1fr 1fr; gap: var(--sp4) var(--sp3); }
+  .hs-vs-item { padding: var(--sp2) 0; }
+  .hs-vs-v { font-size: 28px; }
+  .hs-vs-l { font-size: 12px; }
+}
+
+/* ── plain-language callout for simple mode ────────────────────────── */
+.hs-plain {
+  font-size: 17px; line-height: 1.7; color: var(--text);
+  border-left: var(--w-press) solid var(--text); padding-left: var(--sp5);
+  margin: var(--sp5) 0;
+}
+.hs-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px var(--sp4); font-size: 13.5px; }
+.hs-kv dt { color: var(--muted); }
+.hs-kv dd { color: var(--text2); overflow-wrap: anywhere; }
+/* ^ the provenance rows hold a 64-character SHA-256 with no break point; on a
+   phone it ran 166px past the viewport and gave the whole page a horizontal
+   scroll in advanced mode */
+
+@media (max-width: 900px) {
+  .hs-wf-row { grid-template-columns: 104px minmax(0,1fr) 62px; font-size: 12.5px; }
+  .hs-plain { font-size: 15.5px; padding-left: var(--sp4); }
+}
+
+/* ── map ───────────────────────────────────────────────────────────────
+ * Pan/zoom is done by moving the SVG viewBox, not by re-rendering: 2,541
+ * points plus 4,831 boundary vertices is too much string-building to redo on
+ * every drag frame. Geometry is drawn once in TWD97 metres and the browser
+ * does the transform.
+ */
+.hs-mapwrap {
+  position: relative; border: var(--w-line) solid var(--text);
+  background: var(--bg); overflow: hidden;
+  touch-action: none;
+}
+.hs-mapwrap svg { display: block; width: 100%; height: auto; cursor: grab; }
+.hs-mapwrap svg.dragging { cursor: grabbing; }
+/* Fill is a PRESENTATION ATTRIBUTE set per district by secMap(), so it carries
+   that district's median yield on the --y1..--y6 ramp. Nothing in here may set
+   `fill` unconditionally: a CSS declaration beats a presentation attribute and
+   would flatten the whole choropleth back to one colour. Opacity is the lever
+   that is safe to pull. */
+/* The stroke here IS the boundary casing: a wide halo in the surface colour
+   under the .hs-bound line, so one line colour reads over both ends of the ramp.
+   Folding it into this layer rather than giving it a layer of its own is what
+   keeps 365 districts renderable -- as a third copy of every ring it tripled the
+   vertex count and the browser stopped painting the map altogether. */
+/* fill-opacity is 1 now, not .8. The fill is a HATCH PATTERN, and fading a
+   hatch is the one thing the tone system forbids: density has to come from
+   pitch, or two districts at the same yield stop being comparable across
+   states. Opacity survives only as an INTERACTION lever (hover, focus, dim),
+   where it is describing the UI rather than the data. */
+.hs-land { fill-opacity: 1; stroke: var(--surface); stroke-linejoin: round; }
+.hs-land:hover { fill-opacity: .74; }
+/* Selection does not repaint the fill — that would erase the value the reader
+   selected the district to see. It presses the boundary instead. */
+.hs-land.on { fill-opacity: 1; }
+/* Nothing to count, so nothing to open: no hover lift, and no cursor promising a
+   click that focusDistrict() will decline. */
+.hs-land.nodata { fill-opacity: 1; pointer-events: none; }
+/* One district open: the rest step back rather than disappear, so the reader can
+   still see where they are and jump next door. The open one is turned DOWN too
+   -- a strong tint fights the buildings that were the point of opening it. */
+.hs-land.foc { fill-opacity: .16; }
+/* Dimmed, not deleted. At .13 the counties around the open one read as holes
+   punched in the map rather than as the rest of the country. */
+.hs-land.dim { fill-opacity: .30; }
+/* No font-size here, for the same reason nothing below declares a stroke-width:
+   an author CSS declaration beats the presentation attribute commit() sets, and
+   these are USER units -- metres -- so `font-size: 11px` was an 11-METRE glyph,
+   about a seventh of a pixel. The eight districts with no matched building get
+   their name from this layer and from nowhere else, so all eight were unnamed. */
+/* This is the ONLY name a district gets once its buildings are drawn as dots,
+   and it had no halo at all — bare --muted on the same fills that measured
+   1.00:1. It gets the marks' treatment; its width is set in STROKES with them. */
+.hs-dlabel {
+  fill: var(--text2); pointer-events: none; user-select: none; font-weight: 500;
+  paint-order: stroke; stroke: var(--surface); stroke-linejoin: round;
+}
+
+.hs-mapctl { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; z-index: 3; }
+.hs-mapctl button {
+  width: 30px; height: 30px; border: var(--w-line) solid var(--text);
+  background: var(--surface); color: var(--text2); font: inherit; font-size: 16px;
+  line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+.hs-mapctl button:hover { background: var(--surface2); color: var(--text); }
+.hs-mapctl button.wide { width: 30px; font-size: 11px; }
+
+.hs-scalebar {
+  position: absolute; left: 12px; bottom: 12px; z-index: 3;
+  font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace;
+  background: var(--bg);
+  padding: 3px 7px; pointer-events: none;
+}
+.hs-scalebar i { display: block; height: 4px; margin-bottom: 3px;
+  background: var(--text2); }
+
+.hs-maplegend {
+  position: absolute; left: 12px; top: 12px; z-index: 3;
+  min-width: 186px; max-width: 214px;
+  background: var(--bg);
+  border: var(--w-line) solid var(--text);
+  padding: 9px 11px; font-size: 11.5px; color: var(--text2); pointer-events: none;
+  max-width: 200px;
+}
+.hs-maplegend b { display: block; font-size: 11px; color: var(--text); font-weight: 600; margin-bottom: 5px; }
+.hs-maplegend .row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.hs-ramp { margin: 3px 0 2px; }
+.hs-ramp-ax { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace; }
+
+/* A portrait map stretched across a full desktop column is mostly sea. Capping
+   the width lets the aspect above do its job: the country is drawn LARGER on a
+   narrower canvas (169 km over ~480 px instead of ~396), and the section stops
+   being taller than the viewport. */
+@media (min-width: 901px) {
+  .hs-mapwrap { max-width: 900px; margin-left: auto; margin-right: auto; }
+}
+
+@media (max-width: 900px) {
+  .hs-maplegend { min-width: 0; max-width: 168px; font-size: 10px; padding: 7px 8px; }
+  .hs-msearch { width: min(220px, 66%); }
+}
+
+/* Phone. The map is 343x398 here, so every overlay is spending a scarce
+   resource and two of them were spending the same one twice. */
+@media (max-width: 700px) {
+  /* The legend was 178px of a 398px map — 45% of it — because the three
+     explanatory lines wrap hard at this width. The ramp and its label stay;
+     the prose folds into the same disclosure the type key already uses. */
+  .hs-maplegend .hs-exlab { display: none; }
+  .hs-maplegend details .hs-exlab { display: block; }
+  .hs-maplegend { max-width: 148px; }
+  .hs-mapctl button { width: 34px; height: 34px; }
+}
+
+/* ── basemap layers ────────────────────────────────────────────────────
+ * Everything is drawn in metres, so a 1-unit stroke would be a 1-METRE stroke.
+ * The obvious fix, vector-effect: non-scaling-stroke, turned out to be
+ * pathological here: it makes the browser compute stroke geometry per segment
+ * in device space, and on an 11,000-point road path -- or on 1,881 individual
+ * marks -- a single zoom step hung the renderer for seconds.
+ *
+ * So stroke widths are SET IN METRES by commit() on each zoom instead. That is
+ * a handful of setAttribute calls against thousands of per-segment stroke
+ * computations.
+ *
+ * NOTHING BELOW MAY DECLARE stroke-width. An author CSS declaration beats a
+ * presentation attribute, so a "placeholder" width here silently wins over the
+ * metres commit() computes -- and these are USER units, which are metres, so
+ * `stroke-width: 1.9` is a 1.9-METRE road: about 0.03 px at city scale. Every
+ * layer on this map rendered as a sub-pixel ghost that way, and the district
+ * boundaries could not be seen at all. The halo on .hs-dgname was the only
+ * stroke that ever worked, because it was the only one that omitted the width.
+ */
+.hs-water path { fill: var(--water); stroke: none; }
+.hs-river path { fill: none; stroke: var(--water); stroke-linecap: round; }
+.hs-rd1 path { fill: none; stroke: var(--road1); stroke-linecap: round; stroke-linejoin: round; }
+.hs-rd2 path { fill: none; stroke: var(--road2); stroke-linecap: round; }
+.hs-mrt path { fill: none; stroke: var(--mrt); opacity: .55; stroke-linecap: round; }
+.hs-stn { fill: var(--surface); stroke: var(--mrt); }
+.hs-stnlab { fill: var(--mrt); font-weight: 600; pointer-events: none; user-select: none; }
+.hs-dens rect { fill: var(--dim); }
+/* The outline is not decoration: the ramp's dark end is #3a4270 in dark mode and
+   #cdd3f5 in light, and at both ends a building was a dot the same value as the
+   ground it stood on. A hairline of the TEXT colour is dark on a light map and
+   light on a dark one, so every building is visible at every step of the ramp --
+   and it still does the job the old surface-coloured stroke did, which was to
+   keep two overlapping buildings from reading as one blob. */
+.hs-mdot { stroke: color-mix(in srgb, var(--text) 38%, transparent); }
+
+/* District edges are their own layer, drawn ABOVE the roads and the density
+   grid. Stroked as part of the fill they were painted over by both, which is
+   why 33 districts read as one continuous shape. stroke-width is set in metres
+   by commit(); the value here is a placeholder like every other one. */
+/* One block per county at national zoom. Same treatment as the district layer:
+   the fill carries the value, its own stroke is the casing, and a line goes on
+   top -- but over a real dissolved outline, so no internal border draws. */
+.hs-cland { fill-opacity: 1; stroke: var(--surface); stroke-linejoin: round; cursor: pointer; }
+.hs-cland:hover { fill-opacity: .74; }
+.hs-cland.nodata { fill-opacity: 1; pointer-events: none; }
+.hs-cbound { fill: none; stroke: var(--dline); stroke-linejoin: round; opacity: .85; pointer-events: none; }
+
+.hs-bounds { pointer-events: none; }
+.hs-bound { fill: none; stroke: var(--dline); stroke-linejoin: round; opacity: .85; }
+.hs-bound.foc { stroke: var(--text); opacity: 1; }
+.hs-bound.dim { opacity: .5; }
+
+/* Every decorative layer is click-through, so a click anywhere inside a district
+   reaches its polygon. Without this a click that happened to land on a road, a
+   river or a density cell hit that path instead and did nothing at all. */
+.hs-water, .hs-river, .hs-rd1, .hs-rd2, .hs-mrt, .hs-dens, .hs-stn { pointer-events: none; }
+
+.hs-maplayers { display: flex; flex-wrap: wrap; gap: var(--sp2); margin-bottom: var(--sp3); }
+.hs-symrow { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.hs-symrow svg { flex: 0 0 auto; overflow: visible; }
+
+/* In one ink every basemap layer collapses toward the same value, which is
+   a real legibility problem: a river, a district edge and a road must stay
+   tellable apart. They are separated by TEXTURE and WEIGHT instead of hue.
+   The load-bearing distinction is that LAND IS HATCHED and WATER IS SMOOTH —
+   a flat tone next to a textured one reads instantly, and it means the sea
+   can never be mistaken for a ramp step. Roads sit under the boundary
+   weight; the MRT is the only dashed line on the map, because a dash reads
+   as a route rather than as an unerased guide. */
+:root { --water: #e7e4da; --road1: rgba(25,24,20,.13); --road2: rgba(25,24,20,.075);
+        --mrt: rgba(25,24,20,.46); --dline: rgba(25,24,20,.58); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --water: #1c1b19; --road1: rgba(242,239,230,.13);
+    --road2: rgba(242,239,230,.075); --mrt: rgba(242,239,230,.42); --dline: rgba(242,239,230,.52); }
+}
+:root[data-theme="dark"] { --water: #1c1b19; --road1: rgba(242,239,230,.13);
+  --road2: rgba(242,239,230,.075); --mrt: rgba(242,239,230,.42); --dline: rgba(242,239,230,.52); }
+
+/* ── map: district labels, compact legend, layer menu, detail panel ─────────── */
+.hs-dg { cursor: pointer; }
+/* The mark is the number itself. The disc it used to sit inside covered the
+   geography the map exists to show, and spent its fill on a value the polygon
+   underneath now carries -- so the number is plain, high-contrast type at every
+   size, and the yield is read off the area it is standing on.
+   The halo stroke-width is set in commit(), in METRES: this text lives inside a
+   group whose user unit IS a metre, so a px value here would be a 3-metre halo. */
+.hs-dcount {
+  fill: var(--text); font-weight: 700; text-anchor: middle;
+  pointer-events: none; user-select: none;
+  paint-order: stroke; stroke: var(--surface); stroke-linejoin: round;
+}
+/* The name is part of the mark and is never dropped -- commit() hides the
+   standalone .hs-dlabel for the same key, because the mark sits on the centre of
+   the BUILDINGS and that label on the centre of the POLYGON, and leaving both up
+   prints the name twice in two different places. */
+/* var(--text), not var(--text2).
+   Measured against the polygon it stands on (--yN at .8 over --surface), --text2
+   falls under 4.5:1 from the third ramp step onward and reaches 1.94:1 at the
+   top. The halo is what makes any of this legible, so the ink may as well be
+   the strongest one available. */
+.hs-dgname {
+  fill: var(--text); font-weight: 600; text-anchor: middle;
+  pointer-events: none; user-select: none;
+  paint-order: stroke; stroke: var(--surface); stroke-linejoin: round;
+}
+/* Type is a thin and unreliable thing to ask a thumb to hit: one transparent
+   rect over the whole block is the hit target. */
+.hs-dhit { fill: none; pointer-events: all; }
+/* Keyboard focus has to be visible on a map made of paths. */
+.hs-dg:focus, .hs-mdot:focus { outline: none; }
+.hs-dg:focus-visible .hs-dhit { fill: var(--accent); fill-opacity: .18; }
+.hs-dg:focus-visible .hs-dcount, .hs-dg:focus-visible .hs-dgname { stroke-opacity: 1; }
+/* Colour, not width. A stroke-width here would be TWO METRES -- the map's user
+   unit -- and commit() would not be overriding it, CSS would be overriding
+   commit(). The width already set in dotsHtml is fine; only the hue changes. */
+.hs-mdot:focus-visible { stroke: var(--accent); }
+/* Hover does NOT recolour the ink. --accent is the same value as --y6 in light
+   mode and composites to 1.00:1 against it in dark, so hovering the very
+   districts a reader is most likely to hover erased the label. Widen the halo
+   instead — it lifts the text off any fill without touching the ink. */
+.hs-dg:hover .hs-dcount, .hs-dg:hover .hs-dgname { stroke-opacity: 1; }
+.hs-dg:hover .hs-dhit { fill: var(--accent); fill-opacity: .10; }
+/* A 縣 at national zoom: named and clickable, but not competing with a city
+   that holds two hundred times as many buildings. */
+/* A quiet mark is quiet by WEIGHT and opacity, never by moving the ink toward
+   the fill. --muted measured 3.70:1 down to 1.00:1 across the ramp — at the top
+   step its luminance is identical to the composited fill, so the name vanished
+   completely. */
+.hs-dg.quiet .hs-dgname { fill: var(--text); font-weight: 500; opacity: .72; }
+.hs-dgnum {
+  fill: var(--text); font-weight: 600; text-anchor: middle; opacity: .72;
+  pointer-events: none; user-select: none;
+  paint-order: stroke; stroke: var(--surface); stroke-linejoin: round;
+}
+/* The type key is a real control; the panel around it stays click-through so a
+   click on the map still reaches the polygon underneath. */
+.hs-maplegend details, .hs-maplegend summary { pointer-events: auto; }
+.hs-dg.quiet:hover .hs-dgname { opacity: 1; }
+/* The pill can carry a second clause saying an area has counts but no
+   coordinates, so it must not shout it. */
+.hs-pillgo { color: var(--text); font-weight: 700; }
+.hs-pillat { color: var(--text2); margin-left: 8px; padding-left: 8px;
+  border-left: 1px solid var(--border); }
+.hs-focuspill i { font-style: normal; color: var(--muted); font-size: 12px; margin-left: 3px; }
+.hs-focuspill {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  appearance: none; font: inherit; font-size: 13px; padding: 6px 14px;
+  border: var(--w-line) solid var(--text);
+  background: var(--bg); color: var(--text2); cursor: pointer;
+  white-space: nowrap; z-index: 3;
+}
+.hs-focuspill b { color: var(--text); font-weight: 650; }
+.hs-focuspill:hover { background: var(--surface2); color: var(--text); }
+
+/* The legend was eating a quarter of the map. Yield is the dominant variable,
+   so it gets the ramp; type is a three-row footnote that collapses. */
+.hs-maplegend { max-width: 168px; padding: 8px 10px; }
+.hs-maplegend b { font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.hs-maplegend .hs-ramp { height: 6px; }
+.hs-maplegend details { margin-top: 7px; }
+.hs-maplegend summary { cursor: pointer; font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); list-style: none; }
+.hs-maplegend summary::-webkit-details-marker { display: none; }
+.hs-maplegend summary::after { content: ' ▾'; }
+.hs-maplegend details[open] summary::after { content: ' ▴'; }
+
+/* Layers move into a menu: five permanently-lit buttons read as five actions
+   the reader must decide about before they can even look at the map. */
+.hs-lay { position: relative; display: inline-block; }
+.hs-lay > button { display: inline-flex; align-items: center; gap: 6px; }
+.hs-laymenu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 6; min-width: 176px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 6px;
+}
+.hs-laymenu label {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  font-size: 13px; color: var(--text2); cursor: pointer;
+}
+.hs-laymenu label:hover { background: var(--surface2); }
+.hs-laymenu input { accent-color: var(--text); width: 14px; height: 14px; }
+
+/* an inline opt-in beside a figure: same accent treatment as the layer menu,
+   but laid out in the prose column rather than in a popover */
+.hs-check {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  margin-top: var(--sp5); font-size: 13.5px; color: var(--text);
+}
+.hs-check input { accent-color: var(--text); width: 15px; height: 15px; }
+
+.hs-panel {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(330px, 82%); z-index: 8;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: var(--sp5);
+  overflow-y: auto; transform: translateX(100%); transition: transform 200ms var(--ease, ease);
+}
+.hs-panel.on { transform: translateX(0); }
+.hs-panel h4 { font-size: 15px; font-weight: 700; line-height: 1.35; margin-bottom: 2px; padding-right: 24px; }
+.hs-panel .sub { font-size: 12px; color: var(--muted); margin-bottom: var(--sp4); }
+.hs-panel .big { font-family: 'IBM Plex Mono', monospace; font-size: 32px; font-weight: 600; color: var(--text); line-height: 1; }
+.hs-panel .biglab { font-size: 11.5px; color: var(--muted); margin-bottom: var(--sp4); }
+.hs-panel .grp { font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
+  border-top: 1px solid var(--border2); padding-top: var(--sp3); margin-top: var(--sp4); margin-bottom: var(--sp2); }
+.hs-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 5px var(--sp3); font-size: 13px; }
+.hs-panel dt { color: var(--muted); }
+.hs-panel dd { text-align: right; color: var(--text); font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+.hs-panel .foot { font-size: 11px; color: var(--muted); margin-top: var(--sp4); line-height: 1.5; }
+
+/* On a phone a 330 px side panel is the whole map. It becomes a bottom sheet:
+   the building stays visible above it, which is the point of having clicked. */
+@media (max-width: 700px) {
+  .hs-panel {
+    top: auto; left: 0; right: 0; width: auto; max-height: 62%;
+    border-left: 0; border-top: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
+
+    transform: translateY(100%);
+  }
+  .hs-panel.on { transform: translateY(0); }
+  .hs-focuspill { font-size: 12px; padding: 5px 11px; }
+}
+.hs-panel .x { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px;
+  border: var(--w-line) solid var(--text); background: var(--bg); color: var(--text); cursor: pointer; font-size: 15px; line-height: 1; }
+.hs-panel .x:hover { background: var(--surface2); }
+
+.hs-maphead { display: flex; align-items: center; gap: var(--sp3); flex-wrap: wrap; margin-bottom: var(--sp3); }
+.hs-howlink { font-size: 13px; color: var(--text); background: none; border: 0; cursor: pointer;
+  padding: 0; font: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Yield ramp: six steps of HATCH DENSITY. It used to be one hue light -> dark;
+   a blue->purple->green rainbow was suggested and declined even then, for the
+   reason that still holds — a rainbow is not perceptually ordered, so the
+   reader cannot tell which end means "more" without re-reading the key.
+   Density can only be read one way.
+
+   These six MUST stay numerically identical to HATCH[] in housing.js, or the
+   key stops describing the map. Pitch and nib, in pixels:
+     9.0/0.9  6.4/1.0  5.0/1.2  4.4/1.5  4.0/1.9  3.6/2.3
+   Coverage runs 10% -> 64%, monotonically, which is what makes it ordinal.
+
+   The map's own tiles are SVG patterns sized in metres (housing.js sizeHatch),
+   because there the user unit is a metre. Here they are plain CSS pixels. */
+.hs-ramp { display: flex; height: 11px; gap: 0;
+  box-shadow: inset 0 0 0 var(--w-whisper) var(--border); }
+.hs-ramp i { flex: 1 1 0; display: block; min-width: 0; }
+.hs-y1 { background-image: repeating-linear-gradient(62deg, var(--text) 0 .9px,  transparent .9px  9.0px); }
+.hs-y2 { background-image: repeating-linear-gradient(62deg, var(--text) 0 1.0px, transparent 1.0px 6.4px); }
+.hs-y3 { background-image: repeating-linear-gradient(62deg, var(--text) 0 1.2px, transparent 1.2px 5.0px); }
+.hs-y4 { background-image: repeating-linear-gradient(62deg, var(--text) 0 1.5px, transparent 1.5px 4.4px); }
+.hs-y5 { background-image: repeating-linear-gradient(62deg, var(--text) 0 1.9px, transparent 1.9px 4.0px); }
+.hs-y6 { background-image: repeating-linear-gradient(62deg, var(--text) 0 2.3px, transparent 2.3px 3.6px); }
+
+/* Search sits ON the map, top-left under the legend, because once the page
+   header has scrolled away it is the only way in still on screen. */
+/* Bottom-RIGHT, because bottom-left is the scale bar's and this box was sitting
+   on top of it at the same coordinates and the same corner — the scale simply
+   stopped being visible when search shipped. The result list opens UPWARD for
+   the same reason: downward would run off the bottom of the map. */
+.hs-msearch {
+  position: absolute; right: 12px; bottom: 12px; z-index: 4;
+  width: min(260px, 58%); display: flex; flex-direction: column-reverse;
+}
+.hs-msearch input {
+  width: 100%; font: inherit; font-size: 13px; padding: 7px 11px;
+  border: var(--w-line) solid var(--text);
+  background: var(--bg);
+  color: var(--text);
+}
+.hs-msearch input:focus { outline: var(--w-press) solid var(--text); outline-offset: 2px; }
+.hs-msres {
+  list-style: none; margin: 0 0 6px; padding: 4px; max-height: 232px; overflow-y: auto;
+  border: var(--w-line) solid var(--text); background: var(--bg);
+}
+.hs-msres button {
+  display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left;
+  appearance: none; border: 0; background: none; cursor: pointer;
+  padding: 6px 8px; font: inherit; color: var(--text);
+}
+.hs-msres button:hover, .hs-msres button:focus-visible { background: var(--surface2); }
+.hs-msres .l { font-size: 13px; }
+.hs-msres .s { font-size: 11px; color: var(--muted); }
+
+/* Excluded buildings: present, quiet, and never mistaken for a measurement.
+   No stroke — 31,812 stroked squares is a different cost entirely. */
+/* OUTLINES, not fills.
+   As solid --dim squares at .55/.40/.28 this layer repainted the polygon under
+   it: zoom into 三民區 or 板橋區 and a --y6 district read as --y3, so the layer
+   meant to show what was thrown away was quietly falsifying the colour of what
+   was kept. Hairline outlines add texture on the same channel they always
+   should have used, and one weight is enough — the legend never distinguished
+   the three reasons anyway. */
+.hs-ex { fill: none; stroke: var(--muted); stroke-opacity: .55; }
+.hs-ex1, .hs-ex2, .hs-ex3 { }
+/* One line per channel, and each is "what it is" then "what it means", so the
+   three keys read as a set rather than as a paragraph that happens to wrap. */
+.hs-exlab {
+  margin: 6px 0 0; font-size: 10.5px; line-height: 1.45; color: var(--muted);
+  text-wrap: pretty;
+}
+.hs-maplegend .hs-exlab:first-of-type { margin-top: 9px; }
+
+.hs-inctab { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.hs-inctab th { text-align: left; font-weight: 500; padding: 4px 10px 4px 0; white-space: nowrap; color: var(--text2); }
+.hs-inctab td { padding: 4px 0; }
+.hs-inctab .hs-num { text-align: right; padding-left: 10px; font-variant-numeric: tabular-nums;
+  font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+.hs-incbar { width: 100%; }
+.hs-incbar i { display: block; height: 10px; min-width: 2px; background-color: transparent;
+  background-image: var(--hx4); box-shadow: inset 0 0 0 var(--w-whisper) var(--text); }
+.hs-sub2 { color: var(--subtle); font-size: 11.5px; }
+.hs-mort { margin-top: var(--sp5); }
+.hs-mortgap {
+  margin: var(--sp4) 0 var(--sp3); font-size: 15px; font-weight: 650;
+  color: var(--text); letter-spacing: .01em;
+}
+.hs-rankwho { font-size: 13px; color: var(--text); font-weight: 650; margin-right: 2px; }
+.hs-laynote {
+  margin: 7px 0 0; padding-top: 6px; border-top: 1px solid var(--border2);
+  font-size: 10.5px; line-height: 1.4; color: var(--muted);
+}
+.hs-filtmenu label { flex-direction: column; align-items: stretch; gap: 4px; font-size: 12px; color: var(--muted); }
+.hs-fsel {
+  font: inherit; font-size: 13px; padding: 5px 8px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); width: 100%;
+}
+.hs-chip[aria-pressed="true"] { background: transparent; border-color: var(--text);
+  border-width: var(--w-line); color: var(--text); font-weight: 700; }
+.hs-chip[aria-pressed="true"]::after { content: ""; position: absolute;
+  left: 1px; right: -4px; bottom: -4px; height: var(--w-whisper); background: var(--text); }
+
+/* ── paper ────────────────────────────────────────────────────────────
+   Cold-press tooth. Fixed, click-through, and kept far below the level
+   where it would interfere with reading 16px Traditional Chinese — this
+   page is a long-form essay first and a drawing second, so the substrate
+   is allowed to be felt and never to be noticed. */
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+  opacity: .05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3'/%3E%3C/filter%3E%3Crect width='150' height='150' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:root[data-theme="dark"] body::before { opacity: .085; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body::before { opacity: .085; }
+}
+/* The tooth sits over the page, so anything the reader operates has to sit
+   over the tooth. */
+.hs-top, .hs-tip, .hs-panel, .hs-maplegend, .hs-mapctl, .hs-msearch,
+.hs-focuspill, .hs-scalebar, .hs-laymenu { position: relative; z-index: 41; }
+.hs-top { z-index: 42; }
+
+/* 建物型態 marks, inline with the label they name. */
+.hs-tmark { display: inline-block; vertical-align: -1px; margin-right: 7px; flex: 0 0 auto; }
+.hs-legend b { gap: 0; }
+
+/* ── forced colors ──────────────────────────────────────────────────
+   forced-colors strips background-image, which is where every hatch on
+   this page lives — the choropleth included. That is precisely why hatch
+   is never the sole carrier of a value here: every district that has a
+   tone also prints its number, and the ramp legend prints its domain. */
+@media (forced-colors: active) {
+  .hs-ramp i, .hs-incbar i, .hs-slot { background-image: none !important;
+    border: 1px solid CanvasText; }
+  .hs-card, .hs-stat, .hs-callout, .hs-plain { border-left: 2px solid CanvasText; }
+}
+@media (prefers-contrast: more) {
+  :root { --w-whisper: .9px; --w-line: 1.4px; --w-press: 2.4px;
+          --border: rgba(25,24,20,.7); }
+}
+
+/* ── phone: overlays come off the map ──────────────────────────────────────
+   These live at the END of the file on purpose. .hs-msearch's base rule is
+   declared further down than the earlier @media block, and a media query adds
+   no specificity — so the later plain rule won and `position: absolute` stuck
+   at every width. Same cascade-order trap as .hs-hero's padding shorthand.
+
+   On a 343x398 canvas an overlay in the bottom corner is not "in the corner",
+   it is on top of 高雄 and 屏東: search plus scale covered the southern third
+   of the country. The wrap becomes a column and search sits under the map. */
+@media (max-width: 700px) {
+  .hs-mapwrap { display: flex; flex-direction: column; }
+  .hs-msearch {
+    position: static; width: auto; order: 2;
+    margin: 8px 10px 10px; flex-direction: column;
+  }
+  .hs-msres { margin: 6px 0 0; max-height: 180px; }
+  /* The wrap is a column now and the search occupies its bottom, so bottom:12px
+     put the scale behind it. Clear the search's height plus its margins. */
+  .hs-scalebar { bottom: 60px; }
+}
