@@ -31,9 +31,14 @@ from reportlab.platypus import (BaseDocTemplate, CondPageBreak, Frame, KeepToget
                                 PageBreak, PageTemplate, Paragraph, Spacer, Table,
                                 TableStyle)
 
+from references import (EXTERNAL_READ_ON, GPG_CITIES, GPG_NATIONAL, GPG_UPDATED,
+                        GROUP_ORDER, cite, cite_t, entries, uncited)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-DATA = os.path.join(ROOT, "housing_data.json")
+# Overridable so a test can build the report against a deliberately mangled
+# payload -- that is how the low-use row-order regression is pinned.
+DATA = os.environ.get("REPORT_DATA", os.path.join(ROOT, "housing_data.json"))
 FONT_VAR = os.path.join(ROOT, "data", "fonts", "NotoSansTC.ttf")
 # Static Regular/Bold instances of the variable font. The variable file's DEFAULT
 # instance is weight 100 (Thin), which is what reportlab draws, and it has no bold.
@@ -49,8 +54,23 @@ OUT = os.environ.get("REPORT_OUT", os.path.join(ROOT, "docs", "HOUSING_FINAL_REP
 
 # The citable edition of this write-up. The payload carries its own version;
 # these two move independently and the cover prints both.
-PAPER_VERSION = "v1.0"
-PAPER_DATE = "2026-11-01"
+PAPER_VERSION = "v1.1"
+PAPER_DATE = "2026-11-03"
+
+# Section 16 registers corrections to numbers. This registers editions of the
+# write-up, which is a different thing and was missing: v1.0 had no way to say
+# what a later version had changed. Newest first; the cover prints the top row.
+PAPER_CHANGES = [
+    ("v1.1", "2026-11-03",
+     "Adds section 19, the references, and with it the first comparison against "
+     "published estimates (section 4) -- including that the Taiwan yield in "
+     "circulation traces to a listings aggregator rather than to transaction "
+     "data. Section 18 rewritten: the project is published, so the items saying "
+     "nobody had read it and the repositories were private had stopped being "
+     "true. No measured figure changed."),
+    ("v1.0", "2026-11-01",
+     "First citable edition, written when the project was parked."),
+]
 
 INK = colors.HexColor("#191814")
 MUTED = colors.HexColor("#6b675c")
@@ -293,7 +313,14 @@ def hbars(rows, lo=None, hi=None, fmt=p2, label_w=150, width=None, bar_h=11, gap
     return d
 
 
-def histogram(h_gross, h_net, med_g, med_n, width=None, height=150):
+def histogram(h_gross, h_net, med_g, med_n, width=None, height=150,
+              label_g="gross median {:.2f}%", label_n="net median {:.2f}%"):
+    """The two median labels are parameters because this chart is shared.
+
+    The Chinese edition imports this helper, so hard-coded English put "gross
+    median 2.55%" inside an otherwise Chinese figure. Templates rather than
+    finished strings, so the number stays derived in both editions.
+    """
     width = width or FRAME_W
     lo = min(h_net[0]["x0"], h_gross[0]["x0"])
     hi = max(h_net[-1]["x1"], h_gross[-1]["x1"])
@@ -314,8 +341,8 @@ def histogram(h_gross, h_net, med_g, med_n, width=None, height=150):
     for b in h_net:
         pts += [X(b["x0"]), Y(b["n"]), X(b["x1"]), Y(b["n"])]
     d.add(PolyLine(pts, strokeColor=ACCENT2, strokeWidth=1.2))
-    for v, c, lab in ((med_g, ACCENT, f"gross median {med_g:.2f}%"),
-                      (med_n, ACCENT2, f"net median {med_n:.2f}%")):
+    for v, c, lab in ((med_g, ACCENT, label_g.format(med_g)),
+                      (med_n, ACCENT2, label_n.format(med_n))):
         d.add(Line(X(v), B, X(v), B + Hh, strokeColor=c, strokeWidth=1, strokeDashArray=[3, 2]))
         d.add(_s(X(v) + 3, B + Hh - (8 if c is ACCENT else 18), lab, size=6.8, color=c))
     d.add(Line(L, B, L + W, B, strokeColor=MUTED, strokeWidth=0.5))
@@ -475,7 +502,7 @@ def build(D):
              "15  Market context"),
         ("III", "Reliability"),
         ("", "16  Corrections register · 17  Bug classes and working rules · "
-             "18  Open items and how to restart"),
+             "18  Open items and how to restart · 19  References"),
         ("", "Appendix A — provenance · Appendix B — glossary"),
     ]
     for a, b in toc:
@@ -489,7 +516,8 @@ def build(D):
         "lease <i>in the same building</i> within four quarters, and the rental yield falls out with no "
         f"modelling at all. Done nationally, that gives a median gross yield of <b>{p2(h['yield'])}</b> "
         f"(95% CI {boot['overall']['lo']:.2f}–{boot['overall']['hi']:.2f}) and a net yield of "
-        f"<b>{p2(h['net'])}</b> — below the {bm['mortgage']['rate']:.3f}% the five big banks charge on "
+        f"<b>{p2(h['net'])}</b> (95% CI {boot['overall_net']['lo']:.2f}–{boot['overall_net']['hi']:.2f}) "
+        f"— below the {bm['mortgage']['rate']:.3f}% the five big banks charge on "
         "a new mortgage. But the more important number is the denominator: those medians describe "
         f"<b>{n0(h['buildings'])}</b> of <b>{n0(h['universe_buildings'])}</b> buildings that sold in the "
         f"window — <b>{p2(h['coverage_pct'])}</b>, about one in {round(100/h['coverage_pct'])}."))
@@ -647,8 +675,16 @@ def build(D):
         f"{n0(conc['max_per_building'])}, and the top ten buildings hold {conc['top10_share']:.1f}% of all "
         f"pairs. A pair-level median ({p2(h['pair_level_yield'])}) overweights exactly the buildings that "
         f"are least typical. Every headline figure is a median of per-building medians."))
+    A(P(f"Matching a sale to a lease on the same property is not a new idea. {cite_t('bracke2015')} "
+        "does it for Central London from a letting agency's own book: 1,922 properties both sold and "
+        "let within six months. What differs here is the source and what it lets you say — a public "
+        "national registry rather than one firm's clients, and a registry whose non-coverage is "
+        "itself measurable, which an agency's book cannot be."))
     A(P("<b>Intervals.</b> All confidence intervals come from one two-stage bootstrap: resample "
-        "buildings, then pairs within each building. The browser recomputes intervals with a seeded RNG "
+        "buildings, then pairs within each building. Pairs inside a building are not independent "
+        "draws, and it is the number of buildings, not the number of pairs, that sets the precision "
+        f"{cite('cameron2008')} — which is also why districts carry a floor of {meta['min_district_n']} "
+        "buildings before they are reported at all. The browser recomputes intervals with a seeded RNG "
         "so they do not move between page loads."))
     A(P("<b>Net yield.</b> Four costs are deducted, each a live slider on the site. The JavaScript "
         "implementation is a twin of the Python one and is tested to agree on every building."))
@@ -667,7 +703,8 @@ def build(D):
     A(P("Part II · The findings", "part"))
     A(P("4  The headline yield", "h1"))
     A(tiles([(p2(h["yield"]), f"gross, 95% CI {boot['overall']['lo']:.2f}–{boot['overall']['hi']:.2f}"),
-             (p2(h["net"]), "net of tax, management, vacancy, repairs"),
+             (p2(h["net"]), "net of tax, management, vacancy, repairs<br/>"
+                            f"95% CI {boot['overall_net']['lo']:.2f}–{boot['overall_net']['hi']:.2f}"),
              (p2(h["pair_level_yield"]), "the same data, pair-weighted<br/>(the wrong unit)")]))
     A(Spacer(1, 6))
     A(fig(histogram(D["histogram"], D["histogram_net"], h["yield"], h["net"]),
@@ -692,8 +729,64 @@ def build(D):
             "all new loans nationally"]],
           [38 * mm, 18 * mm, 30 * mm, FRAME_W - 86 * mm], right=(1,)))
     A(P("A buyer financing with a mortgage in this window pays more in interest than the median "
-        "priceable flat returns in net rent. The yield is below the cost of the money that bought it.",
-        "note"))
+        "priceable flat returns in net rent. The yield is below the cost of the money that bought it. "
+        f"That is an arithmetic statement, not a verdict on whether the price is wrong: under the "
+        f"user-cost identity {cite('himmelberg2005')} a low rent-price ratio can be a rational "
+        "response to low real rates and expected appreciation, and nothing measured here settles "
+        "which it is.", "note"))
+
+    A(P("Against other published estimates", "h2"))
+    A(P(f"Taiwan already has a rental-yield figure in circulation, and it is worth asking where it "
+        f"comes from. {cite_t('chang2018')} give a gross rent multiplier of 64 for Taiwan and a yield "
+        "of 1.57%; the stated source of that table is Global Property Guide, a commercial listings "
+        f"aggregator. {cite_t('gpg2026')} now publishes {p2(GPG_NATIONAL)} nationally, computed as "
+        "median asking rent × 12 ÷ median list price over apartments in five cities. So the "
+        "peer-reviewed Taiwan number and the consumer-facing one are the same number, and neither is "
+        "built on transaction data. Two differences from the measurement in this report follow. An "
+        "asking price is not a sale price. And a ratio of two medians taken over different properties "
+        "is not a median of per-property ratios — they are different statistics, and only the second "
+        "one is a yield any individual building could have earned."))
+    A(CondPageBreak(62 * mm))
+    A(P("The comparison city by city, which has not been made before:"))
+    gp = sorted([c for c in D["counties"] if c["city"] in GPG_CITIES],
+                key=lambda c: -c["buildings"])
+    crows = [["City", "This paper", "95% CI", "buildings", f"GPG ({GPG_UPDATED})", "difference"]]
+    for c in gp:
+        g = GPG_CITIES[c["city"]]
+        ci = boot["county"].get(c["county"])
+        crows.append([c["city"], p2(c["yield"]),
+                      f"{ci['lo']:.2f}–{ci['hi']:.2f}" if ci else "—",
+                      n0(c["buildings"]), p2(g), pp(c["yield"] - g)])
+    A(tbl(crows, [26 * mm, 24 * mm, 26 * mm, 24 * mm, 32 * mm, FRAME_W - 132 * mm],
+          right=(1, 2, 3, 4, 5), size=7.8))
+    A(Spacer(1, 5))
+    worst = max(gp, key=lambda c: c["yield"] - GPG_CITIES[c["city"]])
+    best = min(gp, key=lambda c: c["yield"] - GPG_CITIES[c["city"]])
+    A(P(f"The registered measure is higher in all five, by {pp(best['yield']-GPG_CITIES[best['city']])} "
+        f"in {best['city']} and {pp(worst['yield']-GPG_CITIES[worst['city']])} in {worst['city']}. The "
+        "two agree closely in the north and diverge going south. This is indicative and not "
+        "like-for-like: the listings figure covers apartments inside five city boundaries, this one "
+        "covers 4+ storey residential buildings across the whole county — which for 新北, 高雄 and 臺南 "
+        "includes a great deal of non-urban area — and the windows differ. The direction is "
+        "nonetheless the same everywhere, and the gap is largest where the listings platform has the "
+        "least coverage."))
+    A(P(f"Taipei is the one city with three independent estimates, and they agree. "
+        f"{cite_t('yang2018')} estimate a Taipei gross rent multiplier of about 50 from 591 asking "
+        "rents against 實價登錄 sales for 2013–2016, which inverts to a yield near 2.0% — an "
+        "arithmetic inversion of their figure, not one they state. Global Property Guide gives "
+        f"{p2(GPG_CITIES['臺北市'])} for 2026. This report gives "
+        f"{p2([c for c in gp if c['city']=='臺北市'][0]['yield'])}. Three methods, three windows, a "
+        "spread of about a tenth of a point."))
+    A(P("Set against the bounds in §6 rather than against the point estimate: the current listings "
+        "figure and the 2013–2016 multiplier both fall inside the resemblance interval, and the 1.57% "
+        "in circulation falls below it — though that figure describes an earlier period than this "
+        "window, so it is not a contradiction so much as a reminder that a yield without a date and a "
+        "denominator is not a measurement.", "note"))
+    A(P(f"<b>This table is typed, not derived.</b> It is the only one in the report that is. These "
+        f"figures live on other people's pages and in other people's PDFs; no payload can produce "
+        f"them and no test can check them. They were read from the sources on {EXTERNAL_READ_ON} and "
+        "the sources are in §19, so a reader can re-check them the way they can re-check everything "
+        "else here.", "note"))
 
     # ------------------------------------------------------------ 5 coverage
     A(CondPageBreak(95 * mm))
@@ -756,6 +849,13 @@ def build(D):
           "years). The priced slice is concentrated in buildings under ten years old; over-40s are "
           "nearly absent."))
     A(P("The selection effect in one table", "h2"))
+    A(P(f"This is the classical selection problem {cite('heckman1979', 'manski1989')}, and housing "
+        "measurement has met it before: an index built only from houses that sell twice is biased "
+        f"because selling twice is not random {cite('gatzlaff1997')}. The usual repair is to model "
+        "the probability of being observed and correct for it. That repair is unavailable here, and "
+        "§6 explains why: being observed depends on whether a lease was filed through a licensed "
+        "agency, which is an institutional fact about the registry rather than a behaviour of the "
+        "building, and the registry publishes nothing that predicts it."))
     A(tbl([["", "matched", "unmatched", "difference"],
            ["Buildings", n0(age["matched_n"]), n0(age["unmatched_n"]), ""],
            ["Price per 坪 (median)", n0(age["matched_ppp"]), n0(age["unmatched_ppp"]),
@@ -774,8 +874,12 @@ def build(D):
     A(P("Re-weighting the visible slice", "h2"))
     A(P(f"Post-stratifying the matched buildings to the universe's mix moves the gross yield from "
         f"{p2(ps['visible_gross'])} to {p2(ps['by_price']['gross'])} (price decile alone), "
-        f"{p2(ps['by_type']['gross'])} (type alone) and <b>{p2(ps['by_both']['gross'])}</b> (both); "
-        f"net moves to {p2(ps['by_both']['net'])}. The cheapest price decile is under-represented "
+        f"{p2(ps['by_type']['gross'])} (type alone) and <b>{p2(ps['by_both']['gross'])}</b> "
+        f"(both, 95% CI {ps['by_both']['ci_gross'][0]:.2f}–{ps['by_both']['ci_gross'][1]:.2f}); "
+        f"net moves to {p2(ps['by_both']['net'])} "
+        f"(CI {ps['by_both']['ci_net'][0]:.2f}–{ps['by_both']['ci_net'][1]:.2f}). "
+        f"The interval excludes the unweighted {p2(ps['visible_gross'])}, so the "
+        f"{pp(ps['shift_pp'])} shift is not a rounding artefact. The cheapest price decile is under-represented "
         f"({ps['deciles'][0]['ratio']:.2f}× its share) and the dearest over-represented "
         f"({ps['deciles'][-1]['ratio']:.2f}×). Because cheaper buildings yield more, the visible "
         "slice understates the yield of the buildings it cannot see — <i>if</i> they resemble their "
@@ -797,7 +901,9 @@ def build(D):
         "each cell (type, then type × price decile, then × age band), matched buildings enter at their "
         "observed yields and the unmatched share enters as a mass at the cell's assumed floor or "
         "ceiling. The weighted median of that mixture is a sharp bound for the assumption named on "
-        "each rung."))
+        f"each rung. This is the standard construction {cite('manski1989', 'horowitz1995', 'manski2003')}: "
+        "put the unobserved mass at the extremes of its support, and what comes out is an interval "
+        "that the data cannot narrow rather than a point the data cannot support."))
     names = {"band": "Only the site's own quality band", "type_support": "Inside own type's observed min–max",
              "type_trim": "Inside own type's 5th–95th pct", "type_price": "+ own price decile (headline)",
              "type_price_age": "+ own age band"}
@@ -866,7 +972,7 @@ def build(D):
     A(Spacer(1, 6))
     sh = fm["shapley"]["building"]
     A(P(f"Because filter order matters, each filter's contribution is also computed as a <b>Shapley "
-        f"value</b> over all 2³ combinations; the three sum exactly to the total move of "
+        f"value</b> {cite('shorrocks2013')} over all 2³ combinations; the three sum exactly to the total move of "
         f"{pp(fm['total']['building'],3)} per building. Social housing: <b>{pp(sh['social'],3)}</b> "
         f"(the largest, and the sign the subsidy predicts). Whole-unit only: {pp(sh['rooms'],3)}. "
         f"Related-party: {pp(sh['related'],3)}."))
@@ -1210,9 +1316,9 @@ def build(D):
         "so no auction discount is computed. 法拍 itself is unreachable: 司法院's system refuses "
         "connections."))
     A(P(f"<b>Also published:</b> {n0(moi['unsold_new']['value'])} completed-but-unsold new homes at "
-        f"{moi['unsold_new']['period']}; national low-use rate {moi['low_use']['rows'][-1]['rate_pct']}% "
-        f"({moi['low_use']['period']}), from {moi['low_use']['rows'][5]['rate_pct']}% in Taipei to "
-        f"{moi['low_use']['rows'][1]['rate_pct']}% in Tainan."))
+        f"{moi['unsold_new']['period']}; national low-use rate {lu_rate(moi, 'all')['rate_pct']}% "
+        f"({moi['low_use']['period']}), from {lu_rate(moi, 'a')['rate_pct']}% in Taipei to "
+        f"{lu_rate(moi, 'd')['rate_pct']}% in Tainan."))
 
     # ================================================================ PART III
     A(PageBreak())
@@ -1248,6 +1354,13 @@ def build(D):
         "rounding floor mistaken for a bug, and an income \"sign flip\" that compared two different "
         "populations)."))
 
+    A(P("Editions of this paper", "h2"))
+    A(P("Numbers get a corrections register; the write-up itself needs one too, or a version number "
+        "says nothing about what moved."))
+    A(tbl([["Edition", "Date", "What changed"]] +
+          [[v, d, t] for v, d, t in PAPER_CHANGES],
+          [18 * mm, 20 * mm, FRAME_W - 38 * mm], wrap=(2,), size=7.6))
+
     A(CondPageBreak(70 * mm))
     A(P("17  Bug classes and working rules", "h1"))
     A(P("The same few mistakes recurred in different clothes. These rules are the most transferable "
@@ -1277,24 +1390,57 @@ def build(D):
 
     A(CondPageBreak(95 * mm))
     A(P("18  Open items and how to restart", "h1"))
-    A(P("Unresolved when parked", "h2"))
+    A(P("v1.0 wrote this section about a parked project, and its first three items were that no "
+        "reader had ever seen the work, that both repositories were private, and that the page "
+        "carried noindex. None of those is true now. A register that goes on asserting them is worse "
+        "than no register, so this edition splits the list.", "note"))
+    A(P("Closed since v1.0", "h2"))
     A(KeepTogether(bullets([
-        "<b>No reader has ever seen it.</b> quants.tw is unbound on Railway: the hosting account lapsed "
-        "around August, and the account that ran the project is a different login (likely GitHub as "
-        "Stanley0210). The runbook is <i>docs/RAILWAY_GO_LIVE.md</i> on the housing branch.",
-        "<b>housing.html carries noindex,nofollow</b>, a one-line change once there is anything to index.",
-        "<b>Both GitHub repositories are private</b>, so \"check my denominator\" is not yet a real "
-        "invitation. Making one public is Stanley's call.",
+        "<b>It is public.</b> Write-up, payload, pipeline and page are at "
+        "<i>github.com/Stanley0210/taiwan-rental-yield</i>, served at "
+        "<i>stanley0210.github.io/taiwan-rental-yield</i>.",
+        "<b>\"Check my denominator\" is a real invitation now.</b> The payload ships with its SHA-256 "
+        "and a provenance block hashing every source archive and reference file the build read.",
+        "<b>It is citable</b>, with a Zenodo concept DOI that always resolves to the newest version, a "
+        "CITATION.cff, and the citation in the README.",
+        "<b>It exists in Traditional Chinese</b> as well as English, built from the same payload by a "
+        "second generator, with a test pinning that both editions state the same headline figures.",
+        f"<b>The stale ceiling is fixed.</b> v1.0 caught its own typed constant — "
+        f"<i>partial_id.ceiling_pct</i> read 24.0% while the waterfall said "
+        f"{p2(h['coverage_ceiling_pct'])} — and named the one-line repair. Payload v2.9 reads it from "
+        "the waterfall, so the two can no longer disagree.",
+        "<b>The net yield and the reweighted median now carry intervals.</b> Both were published as "
+        "bare point estimates beside a gross figure that had a CI.",
+    ])))
+    A(P("Found while preparing this edition", "h2"))
+    A(callout(
+        "A rebuild from identical inputs and identical code did not reproduce the published payload. "
+        "Thirty fields differed, every one of them in the 內政部 low-use table, and all of them the "
+        "same seven rows in reverse order. The cause was a sort: sorting on the period column with "
+        "<i>sort_values</i> defaults to a non-stable quicksort, and once the frame is filtered to "
+        "the latest period "
+        "every key is tied — so the surviving row order was a property of the installed pandas, not "
+        "of the data.<br/><br/>"
+        "On its own that is a reproducibility hole. But both editions of this paper read that array "
+        "<i>by position</i> — the last row as the national rate, row 5 as Taipei, row 1 as Tainan — "
+        "so a rebuild under a different pandas printed Kaohsiung's rate as the national one and "
+        "swapped the two cities. Three confidently labelled wrong numbers, with the PDF building "
+        "cleanly and every test passing. Both reports now look rows up by county code and never by "
+        "position, the row order is pinned regardless, and a test shuffles the rows and asserts the "
+        "rendered figures do not move.",
+        "A sort that was not a total order"))
+    A(P("Still open", "h2"))
+    A(KeepTogether(bullets([
+        "<b>quants.tw itself is still unbound on Railway</b>, so the interactive version of this work "
+        "— the sliders, the per-district pages — runs nowhere. The static page carries the findings; "
+        "it does not carry the tool. The runbook is <i>docs/RAILWAY_GO_LIVE.md</i> on the housing branch.",
+        "<b>Dependencies are unpinned.</b> <i>requirements.txt</i> names six libraries and no "
+        "versions, which is how a non-stable sort turned into a failed reproduction. Pinning them "
+        "would make <i>bin/rebuild-housing.sh</i> a stronger promise than it is today.",
         "<b>The mortgage rate is a typed constant</b> with no pinned source file, unlike its two siblings.",
         "<b>Per-building URLs</b> (/housing/b/&lt;key&gt;) were never built, because there was no live "
         "site to link to.",
-        "<b>The rental-vacancy level</b> remains an assumption; only its shape is measured.",
-        f"<b>A stale field found while writing this report:</b> <i>partial_id.ceiling_pct</i> still reads "
-        f"{pid['ceiling_pct']}% while the headline ceiling moved to {h['coverage_ceiling_pct']}% with the v2.8 "
-        "join-key fix. The cause is a typed constant (<i>\"ceiling_pct\": 24.0</i> in underwrite.py's "
-        "partial-identification block), so the page's partial-identification callout (housing.js pidWhy) "
-        "and the older citable PDF print 24.0 while the hero prints 24.2. The fix is one line: read it from "
-        "coverage_waterfall. It is exactly the \"derive, don't type\" class in §17.",
+        "<b>The rental-vacancy level</b> remains an assumption; only its shape is measured (§14).",
     ])))
     A(P("Data that could be added next", "h2"))
     A(P("A scouted and critic-checked menu lives in <i>docs/HOUSING_NEXT_DATA.md</i>. Its \"do first\" "
@@ -1306,15 +1452,46 @@ def build(D):
     A(tbl([["Step", "Command / action"],
            ["Check out the code", "git checkout feat/housing   (or the tag housing-parked-2026-09-29)"],
            ["Run locally", "SECRET_KEY=devtestkey QUANTS_SUBJECT=housing venv/bin/python3 app.py"],
-           ["Rebuild the payload", "venv/bin/python3 underwrite.py   (needs the 207 MB season zips in data/lvr/)"],
+           ["Rebuild the payload", "venv/bin/python3 src/underwrite.py   (needs the 207 MB season zips in data/lvr/)"],
            ["Verify reproduction", "bin/rebuild-housing.sh"],
-           ["Tests", "venv/bin/python3 -m pytest tests/ -q   (919 at v2.8)"],
+           ["Tests", "venv/bin/python3 -m pytest tests/ -q   (265 in this repository; 919 was the whole source site)"],
            ["Read first", "docs/HOUSING_HANDOFF.md §0, §2, §11, §8"]],
           [38 * mm, FRAME_W - 38 * mm], wrap=(1,), size=7.8))
     A(Spacer(1, 6))
     A(P("The raw inputs (season zips, address files, 金拍 cache) are gitignored and live only on the "
         "local machine under <i>data/lvr</i>, <i>data/geo</i> and <i>data/fasc</i>. They are hashed in the "
         "payload, so a fresh download can be checked against the published build.", "note"))
+
+    # ------------------------------------------------------------ references
+    A(CondPageBreak(80 * mm))
+    A(P("19  References", "h1"))
+    A(P("Each work is here because a claim in this report leans on it, and the line under each entry "
+        "says which. A reading list of what the subject ought to contain, rather than what the paper "
+        "actually used, would be decoration."))
+    heads = {
+        "bounds": "Partial identification — the frame §6 works inside",
+        "selection": "Selection in transaction data — why §5 is the finding and not a caveat",
+        "pricerent": "Price and rent measured on the same property",
+        "taiwan": "Taiwan",
+        "method": "Method: attribution, and intervals under clustering",
+        "data": "Compared against — data, not literature",
+    }
+    for g in GROUP_ORDER:
+        rows = entries(g)
+        if not rows:
+            continue
+        A(P(heads[g], "h2"))
+        for _k, r in rows:
+            A(KeepTogether([
+                P(f"{r['full']} ({r['year']}). <b>{r['title']}</b>. <i>{r['where']}</i>."),
+                P(r["why"], "note"),
+            ]))
+    # Derive, don't type, applied to the bibliography: a work nothing cites is
+    # either a citation that got dropped or decoration, and the build refuses
+    # to produce a paper with either. cite() raises on the other direction.
+    orphans = uncited()
+    if orphans:
+        raise SystemExit("references: nothing cites " + ", ".join(orphans))
 
     # ------------------------------------------------------------ appendix
     A(PageBreak())
@@ -1349,6 +1526,23 @@ def build(D):
     ]
     A(tbl([["Term", "Meaning"]] + [[a, b] for a, b in gl], [42 * mm, FRAME_W - 42 * mm], wrap=(1,)))
     return story
+
+
+def lu_rate(moi, code):
+    """A low-use rate BY COUNTY CODE ('all' is 全國).
+
+    The order of moi.low_use.rows is not a contract and must never be indexed
+    by position. It used to be: this read rows[-1] for the national rate,
+    rows[5] for Taipei and rows[1] for Tainan, and those positions held only
+    for the row order one pandas version happened to produce. Under another the
+    same code printed Kaohsiung as the nation and swapped the two cities.
+    Missing is an error, not a zero -- a silently absent county would otherwise
+    read as a real 0% low-use rate.
+    """
+    for r in moi["low_use"]["rows"]:
+        if r["county"] == code:
+            return r
+    raise KeyError(f"low_use: no row for county {code!r}")
 
 
 def corr_price_yield(districts):

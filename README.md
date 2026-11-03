@@ -3,7 +3,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23902646.svg)](https://doi.org/10.5281/zenodo.23902646)
 
 **Live page:** https://stanley0210.github.io/taiwan-rental-yield/
-**Paper (PDF, v1.0):** [English](docs/HOUSING_FINAL_REPORT.pdf) ·
+**Paper (PDF, v1.1):** [English](docs/HOUSING_FINAL_REPORT.pdf) ·
 [中文版](docs/HOUSING_FINAL_REPORT_ZH.pdf) ·
 **Technical report:** [`housing_report.pdf`](housing_report.pdf) ·
 **Open question:** [`docs/SOCIAL_HOUSING_NOTE.md`](docs/SOCIAL_HOUSING_NOTE.md)
@@ -42,6 +42,36 @@ support band once more than half the population is observed. This registry can
 never show more than ~24%. The width is a property of the registry, not of the
 cleaning.
 
+## How it compares
+
+The Taiwan rental yield in general circulation is **1.57%**, from a gross rent
+multiplier of 64. That figure appears in the peer-reviewed literature (Chang and
+Chen 2018, *International Real Estate Review*), and its stated source there is
+**Global Property Guide** — a commercial listings aggregator, whose method is
+median *asking* rent × 12 ÷ median *list* price. So the academic number and the
+consumer-facing number are the same number, and neither is built on transaction
+data. A ratio of two medians taken over different properties is also not a median
+of per-property ratios; only the second is a yield a building could have earned.
+
+Set side by side, city by city, for the five cities both cover:
+
+| City | This paper (transacted, matched) | Global Property Guide (asking) | difference |
+|---|---|---|---|
+| 臺北市 Taipei | 2.08% [2.03–2.12] | 1.97% | +0.11pp |
+| 新北市 New Taipei | 2.26% [2.23–2.29] | 2.19% | +0.07pp |
+| 桃園市 Taoyuan | 2.56% [2.48–2.63] | 2.44% | +0.12pp |
+| 高雄市 Kaohsiung | 2.91% [2.86–2.93] | 2.57% | +0.34pp |
+| 臺南市 Tainan | 3.07% [2.94–3.14] | 2.12% | +0.95pp |
+
+The registry measure is higher in all five, and the gap widens going south. This
+is indicative, not like-for-like — the listings figure covers apartments inside
+five city boundaries, this one covers 4+ storey residential buildings across the
+whole county, and the windows differ — but the direction is the same everywhere.
+
+Taipei has three independent estimates and they agree within about a tenth of a
+point: 1.97% (listings, 2026), about 2.0% (a Taipei gross rent multiplier of ~50
+from 591 asking rents against 實價登錄 sales, 2013–2016), and 2.08% here.
+
 ## Results that were withdrawn
 
 Published on the page, not deleted:
@@ -77,7 +107,7 @@ pip install -r requirements.txt          # pandas, numpy, reportlab, fonttools
 python src/underwrite.py                 # rebuilds housing_data.json
 python src/housing_final_report.py       # rebuilds the paper      -> docs/
 python src/housing_final_report_zh.py    # rebuilds the 中文版     -> docs/
-pytest tests/ -q                         # 265 tests
+pytest tests/ -q                         # 287 tests
 ```
 
 The two editions of the paper read the same `housing_data.json`, so they cannot
@@ -109,10 +139,14 @@ Zenodo. https://doi.org/10.5281/zenodo.23902646
 newest version. To cite one specific release instead, use that release's own
 DOI from its Zenodo page — v1.0 is `10.5281/zenodo.23902647`.
 
-Note that the deposit version and the paper version are different things. The
-archive is at v1.1 because it gained the Chinese edition of the paper; the
-paper itself is still edition v1.0, as both covers say, because none of its
-claims changed.
+Note that the deposit version and the paper version are different things, and
+they move independently:
+
+| deposit | paper | what changed |
+|---|---|---|
+| 1.0 | v1.0 | first citable edition, English only |
+| 1.1 | v1.0 | the archive gained the Traditional Chinese edition; no claim moved |
+| 1.2 | v1.1 | references, the comparison above, a rewritten §18, payload v2.9 |
 
 ## Source and licence
 

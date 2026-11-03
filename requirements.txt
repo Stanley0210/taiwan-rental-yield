@@ -1,6 +1,24 @@
-pandas
-numpy
-reportlab
-fonttools
-pypdf
-requests
+# Pinned, and the pin is load-bearing.
+#
+# These were unpinned until payload v2.9, and that is how a reproducibility
+# failure got in: `low_use_rates()` sorted on a column whose keys are all tied
+# after filtering, using pandas' default NON-STABLE quicksort, so the row order
+# it emitted was a property of the installed pandas rather than of the data.
+# Identical inputs and identical code produced the reverse order, which broke
+# `bin/rebuild-housing.sh` -- and, because both editions of the paper read that
+# array by position, printed three confidently mislabelled numbers. See
+# docs/REPRODUCING.md (payload 2.9) and section 18 of the paper.
+#
+# The sort is now stable and the row order explicit, so the bug is fixed at the
+# source rather than papered over by a pin. The pin is here so that the NEXT
+# such difference shows up as a code change instead of an environment one.
+#
+# Built and verified on CPython 3.13.7. Newer releases of these libraries will
+# very likely work; they are simply not what the published payload was built
+# with.
+pandas==3.0.2
+numpy==2.4.4
+reportlab==5.0.1
+fonttools==4.68.0
+pypdf==6.19.0
+requests==2.33.1

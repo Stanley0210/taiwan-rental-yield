@@ -50,7 +50,7 @@ OUT = os.environ.get("LVR_OUT", "housing_data.json")
 # can tell whether they are looking at different code or different data --
 # 實價登錄 grows every quarter, and without this a rebuild that disagrees is
 # indistinguishable from a bug.
-PAYLOAD_VERSION = "2.8"
+PAYLOAD_VERSION = "2.9"
 
 MATCH_WINDOW_Q = 4          # +/- quarters a sale and a lease may be apart
 
@@ -1579,11 +1579,37 @@ def post_stratify(b, ub, deciles=10):
         key = bb[cols[0]] if len(cols) == 1 else list(zip(*[bb[c] for c in cols]))
         ww = np.array([w.get(k, np.nan) for k in key])
         return (wmedian(bb.gross.values, ww), wmedian(bb.net.values, ww),
-                int(np.isfinite(ww).sum()))
+                int(np.isfinite(ww).sum()), ww)
 
-    g_pb, n_pb, _ = run(["pb"])
-    g_bt, n_bt, _ = run(["bldg_type"])
-    g_both, n_both, used = run(["pb", "bldg_type"])
+    g_pb, n_pb, _, _ = run(["pb"])
+    g_bt, n_bt, _, _ = run(["bldg_type"])
+    g_both, n_both, used, ww_both = run(["pb", "bldg_type"])
+
+    # ── AN INTERVAL ON THE REWEIGHTED MEDIAN ────────────────────────────────
+    # The reweighted figure is a CLAIM about the size of the selection effect
+    # (+0.26pp), and until v2.9 it was published as a bare point estimate while
+    # the unweighted headline beside it carried a CI -- so a reader could not
+    # tell whether the shift was distinguishable from zero.
+    #
+    # The resample is over BUILDINGS, which is the unit this function works in,
+    # with the cell weights held fixed: they come from all 157k selling
+    # buildings, so their own sampling error is small next to the 9.8k matched
+    # ones. Own seed, so nothing already published moves.
+    POST_SEED, POST_BOOT = 53, 400
+    rng = np.random.default_rng(POST_SEED)
+    ok = np.isfinite(ww_both)
+    gi, ni, wi = bb.gross.values[ok], bb.net.values[ok], ww_both[ok]
+    gs, ns = [], []
+    for _ in range(POST_BOOT):
+        j = rng.integers(0, len(wi), len(wi))
+        gs.append(wmedian(gi[j], wi[j]))
+        ns.append(wmedian(ni[j], wi[j]))
+    gs = [x for x in gs if x is not None]
+    ns = [x for x in ns if x is not None]
+    ci_g = ([round(float(np.percentile(gs, 2.5)), 3),
+             round(float(np.percentile(gs, 97.5)), 3)] if gs else None)
+    ci_n = ([round(float(np.percentile(ns, 2.5)), 3),
+             round(float(np.percentile(ns, 97.5)), 3)] if ns else None)
     vis = median(b.gross)
     us = ub.groupby("pb").size() / len(ub)
     ms = bb.groupby("pb").size() / len(bb)
@@ -1591,7 +1617,9 @@ def post_stratify(b, ub, deciles=10):
         "visible_gross": vis, "visible_net": median(b.net),
         "by_price": {"gross": round(g_pb, 4), "net": round(n_pb, 4)},
         "by_type": {"gross": round(g_bt, 4), "net": round(n_bt, 4)},
-        "by_both": {"gross": round(g_both, 4), "net": round(n_both, 4), "n": used},
+        "by_both": {"gross": round(g_both, 4), "net": round(n_both, 4), "n": used,
+                    "ci_gross": ci_g, "ci_net": ci_n,
+                    "n_boot": POST_BOOT, "seed": POST_SEED},
         "shift_pp": round(g_both - vis, 4),
         "deciles": [{"d": int(d) + 1,
                      "universe": round(float(us.get(d, 0)) * 100, 1),
@@ -1638,7 +1666,8 @@ def _pid_bound(cells, col, lo_key, hi_key):
     return out
 
 
-def partial_id_block(b, ub, n_boot=PID_BOOT, seed=PID_SEED, ppp_gap_pct=None):
+def partial_id_block(b, ub, n_boot=PID_BOOT, seed=PID_SEED, ppp_gap_pct=None,
+                     ceiling_pct=None):
     """What the registry identifies about the buildings it cannot see.
 
     The site prices 6.22% of the buildings that have a sale on record. The
@@ -1818,7 +1847,13 @@ def partial_id_block(b, ub, n_boot=PID_BOOT, seed=PID_SEED, ppp_gap_pct=None):
                   "not_taiwan_en": "1-3 storey 透天 are 42.7% of the country's dwellings and are outside "
                                    "this site's filters by construction; no rung here speaks about Taiwan."},
         "median_bound_requires_coverage_pct": 50.0,
-        "ceiling_pct": 24.0,
+        # Read from the waterfall, not typed. This was "24.0" while the
+        # waterfall said 24.2 after the v2.8 join-key fix, so the site's
+        # partial-identification callout and the v1.0 PDF disagreed with the
+        # hero on the same page. The report found its own stale constant and
+        # printed the discrepancy in section 18; this is the one-line fix it
+        # named. Exactly the "derive, don't type" class in section 17.
+        "ceiling_pct": ceiling_pct,
         "trim": PID_TRIM, "deciles": PID_DECILES, "min_cell": PID_MIN_CELL,
         "composition": comp,
         "rungs": rungs, "mts": mts, "mts_signed": False,
@@ -1872,6 +1907,15 @@ def bootstrap_cis(pairs, b, n_overall=200, n_district=120, seed=7):
         return two_stage_ci(gp, keys, n, rng)
 
     lo, hi = boot([(c, k) for c, k in zip(b.county, b.k)], n_overall)
+
+    # The net median carried no interval until v2.9, so the paper's second
+    # headline figure was its only bare point estimate. Pair-level nets are
+    # built the way mgmt_flag and the parking treatments build them, and the
+    # draw runs on its own rng so none of the intervals above move.
+    pn = pairs.assign(net=_pair_nets(pairs, pairs.has_mgr))
+    gp_net = {k: g.net.dropna().values for k, g in pn.groupby(["county", "k"])}
+    nlo, nhi = two_stage_ci(gp_net, [(c, k) for c, k in zip(b.county, b.k)],
+                            n_overall, np.random.default_rng(seed + 100))
     per = {}
     for (c, d), grp in b.groupby(["county", "district"]):
         if len(grp) < MIN_DISTRICT_N:
@@ -1893,6 +1937,7 @@ def bootstrap_cis(pairs, b, n_overall=200, n_district=120, seed=7):
                    and ordered[i][2][1] > ordered[i + 1][2][0])
     return {
         "overall": {"median": median(b.gross), "lo": lo, "hi": hi},
+        "overall_net": {"median": median(b.net), "lo": nlo, "hi": nhi},
         "district": {k: {"lo": v[0], "hi": v[1]} for k, v in per.items()},
         "county": {k: {"lo": v[0], "hi": v[1]} for k, v in per_county.items()},
         "adjacent_overlaps": overlaps,
@@ -3934,7 +3979,7 @@ def low_use_rates():
     hs = M.load_series("resi_tax_roll")
     if lu.empty or hs.empty:
         return {}
-    lu_last = lu[lu.value.notna()].sort_values("period")
+    lu_last = lu[lu.value.notna()].sort_values("period", kind="stable")
     if lu_last.empty:
         return {}
     lp = lu_last.period.max()
@@ -3953,6 +3998,25 @@ def low_use_rates():
                      "rate_pct": round(float(r.value) / float(stock.value.iloc[0]) * 100, 2)})
     if not rows:
         return {}
+    # ── AN EXPLICIT TOTAL ORDER, AND WHY ────────────────────────────────────
+    # These rows used to come out in whatever order pandas' default sort left
+    # tied keys in. `sort_values("period")` defaults to quicksort, which is not
+    # stable, and after filtering to the latest period EVERY key is tied -- so
+    # the surviving order was a property of the installed pandas, not of the
+    # data. Identical inputs and identical code produced the exact reverse
+    # under pandas 3.0 against the version that built the published payload,
+    # which is why bin/rebuild-housing.sh reported a mismatch on an honest
+    # rebuild.
+    #
+    # That alone was a reproducibility hole. It was also live wrong answers:
+    # both editions of the paper read this array BY POSITION (rows[-1] as the
+    # national rate, rows[5] as Taipei, rows[1] as Tainan), so a rebuild on a
+    # different pandas printed Kaohsiung's rate as the national one and swapped
+    # Taipei with Tainan -- three confidently labelled wrong numbers, with the
+    # PDF building cleanly and every test green. The reports now look rows up
+    # by county code and never by position; this order is pinned as well, so a
+    # rebuild also diffs clean. 全國 first, then county code.
+    rows.sort(key=lambda r: (r["county"] != "all", r["county"] or ""))
     return {"period": lp, "stock_period": hq, "rows": rows,
             "base_zh": "房屋稅籍住宅類數量",
             "base_en": "residential units on the house-tax roll"}
@@ -4571,7 +4635,8 @@ def build(last_season=LAST_SEASON):
         # What seeing 6% of them permits anyone to say: a ladder of bounds,
         # each rung one more rejectable assumption. Scope is this site's own
         # frame and unit; no rung speaks about Taiwan.
-        "partial_id": partial_id_block(b, ub, ppp_gap_pct=age_blk.get("ppp_diff_pct")),
+        "partial_id": partial_id_block(b, ub, ppp_gap_pct=age_blk.get("ppp_diff_pct"),
+                                       ceiling_pct=wf["ceiling_pct"]),
         # The UNIVERSE row frame, not the cleaned one. coverage_block moved to
         # the universe in v2.2 and this did not, so the page stated 147,789
         # unmatched buildings in one section and compared 100,800 of them in

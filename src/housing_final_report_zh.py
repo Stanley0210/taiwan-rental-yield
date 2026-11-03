@@ -35,13 +35,30 @@ import housing_final_report as R
 from housing_final_report import (ACCENT, ACCENT2, ACCENT3, FRAME_W, INK, MUTED, RULE,
                                   SOFT, F, callout, corr_price_yield, fig,
                                   hbars, histogram, legend, lines, n0, p2, pp, tbl,
-                                  tiles, _s, PAPER_VERSION, PAPER_DATE)
+                                  tiles, _s, PAPER_VERSION, PAPER_DATE,
+                                  PAPER_CHANGES)
+from references import (EXTERNAL_READ_ON, GPG_CITIES, GPG_NATIONAL, GPG_UPDATED,
+                        GROUP_ORDER, cite, cite_t, entries, uncited, why)
 
-# The paper version is the EN module's: this edition renders the same claims,
-# so it is edition v1.0 in Chinese, not a v1.1 of the paper. Only the edition's
-# own date is new -- it did not exist on PAPER_DATE, and the cover says so
-# rather than letting v1.0's date stand for a document written two days later.
+# The paper version is the EN module's: both editions render the same claims,
+# so there is one paper version and two languages, never a Chinese v1.0 beside
+# an English v1.1. v1.1 ships in both languages on the same day, which is why
+# this date and PAPER_DATE now agree; in v1.0 they did not, and the cover row
+# below exists so that an edition written later can never inherit an earlier
+# edition's date.
 ZH_EDITION_DATE = "2026-11-03"
+
+# PAPER_CHANGES, for the register in section 16. Kept beside the English list
+# rather than translated at render time, for the same reason the two reports
+# are separate generators: prose belongs to its edition.
+PAPER_CHANGES_ZH = [
+    ("v1.1", "2026-11-03",
+     "新增第 19 節參考文獻，並據此在第 4 節首次與已發表的估計對照——"
+     "其中包括：目前流通的臺灣報酬率數字，來源是刊登網站的彙整而不是成交資料。"
+     "第 18 節重寫：專案已經公開，原本寫著「沒有人讀過」「儲存庫是私有的」那些項目已經不成立。"
+     "沒有任何量測出來的數字改變。"),
+    ("v1.0", "2026-11-01", "第一個可引用的版本，寫於專案封存之時。"),
+]
 
 OUT = os.environ.get("REPORT_OUT_ZH",
                      os.path.join(R.ROOT, "docs", "HOUSING_FINAL_REPORT_ZH.pdf"))
@@ -79,6 +96,18 @@ def _bind(t):
 
 def P(text, style="body"):
     return R.P(_bind(text), style)
+
+
+def callout(text, title=None):
+    """R.callout, but through this edition's text pipeline.
+
+    R.callout builds its Paragraph directly, so callout text never passed
+    through _bind() -- every Chinese callout in this edition could break a line
+    between a Latin token and the character after it ("pandas" / "下重建"), the
+    same defect _bind() exists to prevent in body text. Found while rendering
+    the v1.1 section 18 callout; it affected the ones already there too.
+    """
+    return R.callout(_bind(_safe(text)), _safe(title) if title else title)
 
 
 def bullets(items, style="bullet"):
@@ -178,7 +207,7 @@ def build(D):
     A(Spacer(1, 22 * mm))
     A(tbl([["", ""],
            ["論文版本", f"{PAPER_VERSION}  ·  {PAPER_DATE}"],
-           ["中文版", f"{ZH_EDITION_DATE}（與英文版 {PAPER_VERSION} 同一份內容）"],
+           ["中文版", f"{ZH_EDITION_DATE}（與英文版 {PAPER_VERSION} 同步發佈，內容相同）"],
            ["資料版本", f"v{prov['version']}  ·  建立於 {prov['built']}"],
            ["資料期間", f"{meta['seasons'][0]} → {meta['seasons'][1]}（共 {meta['n_seasons']} 季，"
                         "民國112年第4季 → 115年第2季）"],
@@ -205,7 +234,8 @@ def build(D):
              "11  捷運（已撤回） · 12  預售屋 · 13  車位 · 14  成本模型 · "
              "15  市場背景"),
         ("參", "可信度"),
-        ("", "16  更正紀錄 · 17  錯誤類型與工作守則 · 18  未結事項與重啟方式"),
+        ("", "16  更正紀錄 · 17  錯誤類型與工作守則 · 18  未結事項與重啟方式 · "
+             "19  參考文獻"),
         ("", "附錄A — 資料來源 · 附錄B — 名詞"),
     ]
     for a, b in toc:
@@ -218,7 +248,9 @@ def build(D):
     A(P("<b>一句話版本。</b>從內政部實價登錄取一筆真實成交，在<i>同一棟建物</i>內找到一筆四季以內的"
         "真實租約，租金報酬率就直接算得出來，完全不需要任何模型。以全國資料這樣做，毛報酬率中位數為"
         f"<b>{p2(h['yield'])}</b>（95% 信賴區間 {boot['overall']['lo']:.2f}–{boot['overall']['hi']:.2f}），"
-        f"淨報酬率為 <b>{p2(h['net'])}</b>——低於五大銀行新承作房貸的 {bm['mortgage']['rate']:.3f}%。"
+        f"淨報酬率為 <b>{p2(h['net'])}</b>"
+        f"（95% 信賴區間 {boot['overall_net']['lo']:.2f}–{boot['overall_net']['hi']:.2f}）"
+        f"——低於五大銀行新承作房貸的 {bm['mortgage']['rate']:.3f}%。"
         "但更重要的數字是分母：這些中位數描述的，是期間內有成交紀錄的 "
         f"<b>{n0(h['universe_buildings'])}</b> 棟當中的 <b>{n0(h['buildings'])}</b> 棟"
         f"——<b>{p2(h['coverage_pct'])}</b>，大約每 {round(100/h['coverage_pct'])} 棟裡的一棟。"))
@@ -377,6 +409,14 @@ def build(D):
                      f"{a['min']:g}–{a['max']:g}", _safe(a["src_zh"])])
     A(tbl(rows, [26 * mm, 26 * mm, 17 * mm, FRAME_W - 69 * mm], wrap=(3,), size=7.2))
     A(Spacer(1, 6))
+    A(P(f"在同一間房子上同時取得成交價與租金，並不是新的做法。{cite_t('bracke2015')} "
+        "就以一家仲介自己的成交簿對倫敦市中心做過：1,922 件物件在六個月內同時被出售與出租。"
+        "這裡不同的是來源與它能支撐的結論——公開的全國登錄資料，而不是一家公司的客戶名單；"
+        "而且這份登錄資料「沒有涵蓋到的部分」本身是可以被量出來的，仲介的成交簿做不到這件事。"))
+    A(P(f"<b>區間。</b>同一棟樓之內的配對並不是獨立抽樣，而真正限制精確度的是棟數、不是配對數"
+        f"{cite('cameron2008')}——這也是為什麼各行政區要先通過 {meta['min_district_n']} 棟的下限"
+        "才會被報告出來。",
+        "note"))
     A(P("<b>可重現性。</b>資料檔內含各季原始壓縮檔的 SHA-256 清單、每一份參考 CSV 與金拍快取的雜湊值、"
         "建立時的 commit 以及版本號。<i>bin/rebuild-housing.sh</i> 會重建資料檔，"
         "並在結構上與已提交的雜湊值比對差異。"))
@@ -386,10 +426,12 @@ def build(D):
     A(P("第貳部 · 發現", "part"))
     A(P("4  報酬率主數字", "h1"))
     A(tiles([(p2(h["yield"]), f"毛報酬率，95% 信賴區間 {boot['overall']['lo']:.2f}–{boot['overall']['hi']:.2f}"),
-             (p2(h["net"]), "淨報酬率，已扣稅、管理費、空置與修繕"),
+             (p2(h["net"]), "淨報酬率，已扣稅、管理費、空置與修繕<br/>"
+                            f"95% 信賴區間 {boot['overall_net']['lo']:.2f}–{boot['overall_net']['hi']:.2f}"),
              (p2(h["pair_level_yield"]), "同一份資料，以配對加權<br/>（錯誤的單位）")]))
     A(Spacer(1, 6))
-    A(fig(histogram(D["histogram"], D["histogram_net"], h["yield"], h["net"]),
+    A(fig(histogram(D["histogram"], D["histogram_net"], h["yield"], h["net"],
+                    label_g="毛報酬率中位數 {:.2f}%", label_n="淨報酬率中位數 {:.2f}%"),
           "圖 4.1 — 以棟為單位的報酬率分布。柱狀為毛報酬率，折線為淨報酬率。"
           "兩端的柱子是超出範圍者的堆積（直方圖在此截斷），不是該區間自己的次數。"
           f"兩個中位數之間的水平距離（{h['yield']-h['net']:.2f} 個百分點）就是成本模型。"))
@@ -410,7 +452,58 @@ def build(D):
             "全國所有新承作貸款"]],
           [38 * mm, 18 * mm, 30 * mm, FRAME_W - 86 * mm], right=(1,)))
     A(P("在這段期間以房貸購屋的買方，付出的利息高於中位數可定價住宅所產生的淨租金收入。"
-        "報酬率低於買下它的那筆錢的成本。", "note"))
+        "報酬率低於買下它的那筆錢的成本。這是一個算術陳述，不是對「價格錯了」的判決："
+        f"依使用者成本（user cost）恆等式{cite('himmelberg2005')}，偏低的租金／價格比"
+        "可以是對低實質利率與預期增值的合理反應，而本文量到的任何東西都無法判定是哪一種。",
+        "note"))
+
+    A(P("與其他已發表的估計相比", "h2"))
+    A(P(f"臺灣其實已經有一個在流通的租金報酬率數字，值得問的是它從哪裡來。"
+        f"{cite_t('chang2018')} 給出臺灣的租金乘數 64、報酬率 1.57%，"
+        "而那張表自己註明的來源是 Global Property Guide——一個商業刊登網站的彙整。"
+        f"{cite_t('gpg2026')} 目前公布的全國數字是 {p2(GPG_NATIONAL)}，"
+        "算法是五個城市公寓的「刊登租金中位數 × 12 ÷ 刊登價格中位數」。"
+        "也就是說，經過同儕審查的那個臺灣數字與面向消費者的那個是同一個數字，"
+        "而兩者都不是建立在成交資料上。由此延伸出兩點與本報告的差異。刊登價格不是成交價格。"
+        "而且「兩個分別取自不同物件的中位數之比」並不等於「每一棟各自比值的中位數」——"
+        "它們是不同的統計量，而且只有後者是某一棟建物真的可能賺到的報酬率。"))
+    A(CondPageBreak(62 * mm))
+    A(P("逐一城市對照，這個比較過去沒有被做過："))
+    gp = sorted([c for c in D["counties"] if c["city"] in GPG_CITIES],
+                key=lambda c: -c["buildings"])
+    crows = [["城市", "本報告", "95% 信賴區間", "棟數", f"GPG（{GPG_UPDATED}，刊登）", "差異"]]
+    for c in gp:
+        g = GPG_CITIES[c["city"]]
+        ci = boot["county"].get(c["county"])
+        crows.append([c["city"], p2(c["yield"]),
+                      f"{ci['lo']:.2f}–{ci['hi']:.2f}" if ci else "—",
+                      n0(c["buildings"]), p2(g), pp(c["yield"] - g)])
+    A(tbl(crows, [24 * mm, 22 * mm, 26 * mm, 20 * mm, 38 * mm, FRAME_W - 130 * mm],
+          right=(1, 2, 3, 4, 5), size=7.6))
+    A(Spacer(1, 5))
+    worst = max(gp, key=lambda c: c["yield"] - GPG_CITIES[c["city"]])
+    best = min(gp, key=lambda c: c["yield"] - GPG_CITIES[c["city"]])
+    A(P(f"五個城市全部都是登錄資料算出來的比較高，"
+        f"{best['city']}差 {pp(best['yield']-GPG_CITIES[best['city']])}，"
+        f"{worst['city']}差 {pp(worst['yield']-GPG_CITIES[worst['city']])}。"
+        "兩者在北部相當接近，往南則逐漸分開。這只是指示性的對照，並非嚴格的同類比較："
+        "刊登網站的數字涵蓋五個市轄範圍內的公寓，本文涵蓋全縣市的四層以上住宅建物——"
+        "對新北、高雄、臺南而言，那包含了大量非都市地區——而且兩者的期間也不同。"
+        "不過方向在每一個城市都一致，而且落差最大的地方，正是刊登平台涵蓋最薄的地方。"))
+    A(P(f"臺北市是唯一有三個獨立估計的城市，而三者相符。{cite_t('yang2018')} 以 591 的刊登租金"
+        "對上實價登錄的成交價，估出 2013–2016 年臺北的租金乘數約為 50，倒數過來約等於 2.0% ——"
+        "這是把他們的數字做算術倒數，不是他們自己寫出來的報酬率。"
+        f"Global Property Guide 的 2026 年數字是 {p2(GPG_CITIES['臺北市'])}。"
+        f"本報告是 {p2([c for c in gp if c['city']=='臺北市'][0]['yield'])}。"
+        "三種方法、三個期間，差距約在零點一個百分點上下。"))
+    A(P("改成和第 6 節的界線對照，而不是和點估計對照：目前的刊登數字與 2013–2016 年的租金乘數"
+        "都落在「相似性假設」的區間之內，而流通中的 1.57% 落在它之下——"
+        "不過那個數字描述的是比本文期間更早的時期，所以這不算矛盾，"
+        "而是再一次提醒：一個沒有附上日期與分母的報酬率，並不是一次量測。", "note"))
+    A(P(f"<b>這張表是手寫的，不是推導出來的。</b>它是本報告唯一一張這樣的表。"
+        f"這些數字活在別人的網頁與別人的 PDF 裡；沒有任何資料檔能產生它們，也沒有任何測試能檢查它們。"
+        f"它們是在 {EXTERNAL_READ_ON} 從來源讀取的，來源列在第 19 節，"
+        "所以讀者可以用檢查本報告其他每一個數字的方式去檢查它們。", "note"))
 
     # ------------------------------------------------------------ 5 覆蓋率
     A(CondPageBreak(95 * mm))
@@ -469,6 +562,13 @@ def build(D):
           f"與本站可定價建物的屋齡分布（藍色，中位數 {sba['ours_median_age']:.0f} 年）對照。"
           "可定價的那一塊集中在十年以下的建物，40 年以上幾乎完全缺席。"))
     A(P("一張表看選擇效應", "h2"))
+    A(P(f"這就是古典的選擇問題{cite('heckman1979', 'manski1989')}，"
+        "而住宅量測領域也遇過它：只用賣過兩次的房子所建立的指數是有偏的，"
+        f"因為「賣兩次」不是隨機發生的{cite('gatzlaff1997')}。"
+        "常見的修補方式是替「被觀察到」的機率建模再加以校正。這個修補在這裡用不上，"
+        "第 6 節會說明原因：能不能被觀察到，取決於租約是否經由合法登記的業者申報，"
+        "那是關於這套登錄制度的制度性事實，不是建物本身的行為，"
+        "而登錄資料並沒有公布任何可以預測它的東西。"))
     A(tbl([["", "可配對", "配不到", "差異"],
            ["建物數", n0(age["matched_n"]), n0(age["unmatched_n"]), ""],
            ["每坪單價（中位數）", n0(age["matched_ppp"]), n0(age["unmatched_ppp"]),
@@ -487,8 +587,13 @@ def build(D):
     A(P("把看得見的那一塊重新加權", "h2"))
     A(P(f"把可配對建物事後分層（post-stratification）到母體的組成後，毛報酬率由 "
         f"{p2(ps['visible_gross'])} 變為 {p2(ps['by_price']['gross'])}（僅按價格十分位）、"
-        f"{p2(ps['by_type']['gross'])}（僅按類型），以及 <b>{p2(ps['by_both']['gross'])}</b>（兩者同時）；"
-        f"淨報酬率則變為 {p2(ps['by_both']['net'])}。最便宜的價格十分位被低估"
+        f"{p2(ps['by_type']['gross'])}（僅按類型），以及 <b>{p2(ps['by_both']['gross'])}</b>"
+        f"（兩者同時，95% 信賴區間 "
+        f"{ps['by_both']['ci_gross'][0]:.2f}–{ps['by_both']['ci_gross'][1]:.2f}）；"
+        f"淨報酬率則變為 {p2(ps['by_both']['net'])}"
+        f"（區間 {ps['by_both']['ci_net'][0]:.2f}–{ps['by_both']['ci_net'][1]:.2f}）。"
+        f"這個區間不含未加權的 {p2(ps['visible_gross'])}，"
+        f"所以 {pp(ps['shift_pp'])} 的位移不是四捨五入造成的。最便宜的價格十分位被低估"
         f"（只有應有比例的 {ps['deciles'][0]['ratio']:.2f} 倍），最貴的被高估"
         f"（{ps['deciles'][-1]['ratio']:.2f} 倍）。由於較便宜的建物報酬率較高，"
         "看得見的那一塊<i>低估</i>了它看不見的那些建物的報酬率——"
@@ -509,7 +614,10 @@ def build(D):
         "等於默默假設它們長得和有紀錄的那些一樣。部分識別（partial identification）拒絕這個假設，"
         "改為替它們<i>設界</i>。在每一個格子內（先按類型，再按類型×價格十分位，再加屋齡級距），"
         "可配對建物以其實際觀察到的報酬率進入，配不到的那一部分則以一整團質量落在該格子假設的"
-        "下界或上界上。這個混合分布的加權中位數，就是每一階所標示之假設下的精確界線（sharp bound）。"))
+        "下界或上界上。這個混合分布的加權中位數，就是每一階所標示之假設下的精確界線（sharp bound）。"
+        f"這是標準的構造法{cite('manski1989', 'horowitz1995', 'manski2003')}："
+        "把沒有觀察到的那團質量放到它支撐集的兩端，得到的是一個資料無法再收窄的區間，"
+        "而不是一個資料無法支撐的點。"))
     names = {"band": "僅本站自己的品質區間", "type_support": "落在自身類型已觀察到的最小—最大值內",
              "type_trim": "落在自身類型第5—第95百分位內", "type_price": "＋自身價格十分位（主數字）",
              "type_price_age": "＋自身屋齡級距"}
@@ -577,7 +685,8 @@ def build(D):
           wrap=(0,), size=7.8))
     A(Spacer(1, 6))
     sh = fm["shapley"]["building"]
-    A(P(f"由於篩選的先後順序會影響結果，每一道篩選的貢獻另以 <b>Shapley 值</b>計算，"
+    A(P(f"由於篩選的先後順序會影響結果，每一道篩選的貢獻另以 <b>Shapley 值</b>"
+        f"{cite('shorrocks2013')}計算，"
         f"涵蓋全部 2³ 種組合；三者相加恰好等於以棟計的總變動 {pp(fm['total']['building'],3)}。"
         f"社會住宅：<b>{pp(sh['social'],3)}</b>（幅度最大，且方向正如補貼所預測）。"
         f"只留整戶出租：{pp(sh['rooms'],3)}。親友交易：{pp(sh['related'],3)}。"))
@@ -922,9 +1031,9 @@ def build(D):
         "司法院的系統拒絕連線。"))
     A(P(f"<b>另外也一併發佈：</b>{moi['unsold_new']['period']} 的已完工待售新成屋 "
         f"{n0(moi['unsold_new']['value'])} 戶；全國低度使用率 "
-        f"{moi['low_use']['rows'][-1]['rate_pct']}%（{moi['low_use']['period']}），"
-        f"從臺北的 {moi['low_use']['rows'][5]['rate_pct']}% 到"
-        f"臺南的 {moi['low_use']['rows'][1]['rate_pct']}%。"))
+        f"{R.lu_rate(moi, 'all')['rate_pct']}%（{moi['low_use']['period']}），"
+        f"從臺北的 {R.lu_rate(moi, 'a')['rate_pct']}% 到"
+        f"臺南的 {R.lu_rate(moi, 'd')['rate_pct']}%。"))
 
     # ================================================================ 第參部
     A(PageBreak())
@@ -959,6 +1068,12 @@ def build(D):
         "那 6 項駁回中有 2 項是本專案自己提出的假警報（一個是把捨入下限誤認為錯誤，"
         "另一個是所得的「符號反轉」，其實是在比較兩個不同的母體）。"))
 
+    A(P("本文的版本沿革", "h2"))
+    A(P("數字有更正紀錄；文章本身也需要一份，否則版本號說不出到底動了什麼。"))
+    A(tbl([["版本", "日期", "動了什麼"]] +
+          [[v, d, t] for v, d, t in PAPER_CHANGES_ZH],
+          [18 * mm, 20 * mm, FRAME_W - 38 * mm], wrap=(2,), size=7.2))
+
     A(CondPageBreak(70 * mm))
     A(P("17  錯誤類型與工作守則", "h1"))
     A(P("同樣的少數幾個錯誤，換了不同的外衣反覆出現。這些守則是本專案最可移轉的產出，"
@@ -987,24 +1102,52 @@ def build(D):
 
     A(CondPageBreak(95 * mm))
     A(P("18  未結事項與重啟方式", "h1"))
-    A(P("封存時尚未解決的事", "h2"))
+    A(P("v1.0 是針對一個已封存的專案寫這一節的，而它列在最前面的三項是：沒有任何讀者看過這份工作、"
+        "兩個儲存庫都是私有的、頁面帶有 noindex。這三件事現在都不成立了。"
+        "一份一直在陳述錯誤事實的紀錄，比沒有紀錄更糟，所以這一版把清單拆開。", "note"))
+    A(P("自 v1.0 以來已經結案的事", "h2"))
     A(KeepTogether(bullets([
-        "<b>沒有任何讀者看過它。</b>quants.tw 在 Railway 上未綁定：代管帳號約在八月失效，"
-        "而執行這個專案的帳號是另一個登入（很可能是 GitHub 的 Stanley0210）。"
+        "<b>它公開了。</b>文章、資料檔、管線與頁面都在 "
+        "<i>github.com/Stanley0210/taiwan-rental-yield</i>，並由 "
+        "<i>stanley0210.github.io/taiwan-rental-yield</i> 提供瀏覽。",
+        "<b>「來查我的分母」現在是一個真正的邀請。</b>資料檔附帶自己的 SHA-256，"
+        "以及一個把每一份原始壓縮檔與參考檔都列出雜湊值的來源區塊。",
+        "<b>它可以被引用了</b>：Zenodo 的概念 DOI 永遠指向最新版本，另有 CITATION.cff 與 README 中的引用格式。",
+        "<b>它有繁體中文版</b>，與英文版讀同一份資料檔、由第二支產生器建立，"
+        "並有測試釘住兩個版本所陳述的主要數字必須一致。",
+        f"<b>那個過期的上限已經修好了。</b>v1.0 自己抓到了它手寫的常數——"
+        f"<i>partial_id.ceiling_pct</i> 讀到 24.0%，而瀑布圖說的是 "
+        f"{p2(h['coverage_ceiling_pct'])}——並指出只有一行的修法。"
+        "資料檔 v2.9 改為從瀑布圖讀它，兩者不可能再互相矛盾。",
+        "<b>淨報酬率與重新加權後的中位數現在都有區間了。</b>這兩個數字過去都是以單點估計發表，"
+        "旁邊的毛報酬率卻帶著信賴區間。",
+    ])))
+    A(P("準備這一版時發現的事", "h2"))
+    A(callout(
+        "以完全相同的輸入與完全相同的程式碼重建資料檔，並沒有重現已發佈的那一份。"
+        "有三十個欄位不同，而且全部都在內政部的低度使用住宅表裡，"
+        "全部都是同樣那七列、順序剛好完全顛倒。原因是一次排序：以 <i>sort_values</i> "
+        "依 period 欄位排序時，預設使用的是不穩定的 quicksort，"
+        "而當資料被篩到最新一期之後，每一個鍵值都是相同的——"
+        "所以存活下來的列順序，是「安裝了哪一版 pandas」的性質，不是資料的性質。<br/><br/>"
+        "單就這樣，它只是一個可重現性的漏洞。但本文的兩個版本都是<i>按位置</i>讀這個陣列的——"
+        "最後一列當成全國、第 5 列當成臺北、第 1 列當成臺南——"
+        "所以在不同的 pandas 下重建，會把高雄的比率印成全國的，並且把那兩個城市對調。"
+        "三個被自信地貼上標籤的錯誤數字，而 PDF 產生得乾乾淨淨，每一條測試都通過。"
+        "兩份報告現在都改為按縣市代碼查詢、絕不按位置，列順序本身也被釘住了，"
+        "而且有一條測試會把列順序打亂，然後確認印出來的數字不動。",
+        "一次不構成全序的排序"))
+    A(P("仍然未結的事", "h2"))
+    A(KeepTogether(bullets([
+        "<b>quants.tw 本身在 Railway 上仍未綁定</b>，所以這份工作的互動版本——"
+        "那些滑桿、各行政區的頁面——沒有在任何地方執行。靜態頁面承載的是發現，不是工具。"
         "操作手冊是住宅分支上的 <i>docs/RAILWAY_GO_LIVE.md</i>。",
-        "<b>housing.html 帶有 noindex,nofollow</b>，一旦有值得被索引的東西，這是一行就能改的設定。",
-        "<b>兩個 GitHub 儲存庫都是私有的</b>，所以「來查我的分母」還不是一個真正的邀請。"
-        "要不要公開其中一個，是 Stanley 的決定。",
+        "<b>相依套件沒有釘住版本。</b><i>requirements.txt</i> 列了六個套件、沒有任何版本，"
+        "這正是一次不穩定的排序之所以會變成一次重現失敗的原因。把版本釘住，"
+        "會讓 <i>bin/rebuild-housing.sh</i> 成為比現在更強的承諾。",
         "<b>房貸利率是一個手寫的常數</b>，沒有釘住的來源檔，與它的另外兩個同類不同。",
         "<b>每棟建物的網址</b>（/housing/b/&lt;key&gt;）從未建立，因為當時沒有上線的網站可以連過去。",
-        "<b>租賃空置率的水準值</b>仍然是一個假設；只有它的形狀被測量出來。",
-        f"<b>撰寫本報告時發現的一個過期欄位：</b><i>partial_id.ceiling_pct</i> 仍然讀到 "
-        f"{pid['ceiling_pct']}%，而主數字的上限在 v2.8 修正接合鍵之後已移動到 "
-        f"{h['coverage_ceiling_pct']}%。原因是一個手寫常數"
-        "（underwrite.py 部分識別區塊中的 <i>\"ceiling_pct\": 24.0</i>），"
-        "所以頁面的部分識別說明框（housing.js 的 pidWhy）與較舊的可引用 PDF 印的是 24.0，"
-        "而首頁印的是 24.2。修法只有一行：從 coverage_waterfall 讀它。"
-        "這正好就是第 17 節所說的「要推導，不要手寫」那一類。",
+        "<b>租賃空置率的水準值</b>仍然是一個假設；只有它的形狀被測量出來（第 14 節）。",
     ])))
     A(P("接下來可以加入的資料", "h2"))
     A(P("一份經過探勘與批判檢查的清單放在 <i>docs/HOUSING_NEXT_DATA.md</i>。"
@@ -1016,15 +1159,44 @@ def build(D):
     A(tbl([["步驟", "指令／動作"],
            ["取出程式碼", "git checkout feat/housing（或標籤 housing-parked-2026-09-29）"],
            ["本機執行", "SECRET_KEY=devtestkey QUANTS_SUBJECT=housing venv/bin/python3 app.py"],
-           ["重建資料檔", "venv/bin/python3 underwrite.py（需要 data/lvr/ 內 207 MB 的季度壓縮檔）"],
+           ["重建資料檔", "venv/bin/python3 src/underwrite.py（需要 data/lvr/ 內 207 MB 的季度壓縮檔）"],
            ["驗證可重現性", "bin/rebuild-housing.sh"],
-           ["測試", "venv/bin/python3 -m pytest tests/ -q（v2.8 時為 919 條）"],
+           ["測試", "venv/bin/python3 -m pytest tests/ -q（本儲存庫為 265 條；919 是原專案全站的數量）"],
            ["先讀這些", "docs/HOUSING_HANDOFF.md 第 0、2、11、8 節"]],
           [38 * mm, FRAME_W - 38 * mm], wrap=(1,), size=7.8))
     A(Spacer(1, 6))
     A(P("原始輸入（季度壓縮檔、門牌檔、金拍快取）被 gitignore 排除，只存在於本機的 "
         "<i>data/lvr</i>、<i>data/geo</i> 與 <i>data/fasc</i> 之下。它們在資料檔中留有雜湊值，"
         "因此重新下載的檔案可以與已發佈的版本比對。", "note"))
+
+    # ------------------------------------------------------------ 參考文獻
+    A(CondPageBreak(80 * mm))
+    A(P("19  參考文獻", "h1"))
+    A(P("每一筆都是因為本報告裡有某個主張倚賴它才列在這裡，每一筆底下那一行說明是哪一個。"
+        "若列的是「這個題目應該要有什麼」而不是「這篇文章實際用了什麼」，那就只是裝飾。"))
+    A(P("書目欄位（作者、年份、篇名、期刊、頁碼）刻意不翻譯：一筆引用必須能被照原樣複製進"
+        "文獻管理軟體。", "note"))
+    heads = {
+        "bounds": "部分識別——第 6 節所處的框架",
+        "selection": "成交資料中的選擇問題——為什麼第 5 節是發現，而不是免責聲明",
+        "pricerent": "在同一間房子上同時量價格與租金",
+        "taiwan": "臺灣",
+        "method": "方法：歸因，以及群聚下的區間",
+        "data": "用來對照的資料，不是文獻",
+    }
+    for g in GROUP_ORDER:
+        rows = entries(g)
+        if not rows:
+            continue
+        A(P(heads[g], "h2"))
+        for _k, r in rows:
+            A(KeepTogether([
+                P(_safe(f"{r['full']} ({r['year']}). <b>{r['title']}</b>. <i>{r['where']}</i>.")),
+                P(_safe(why(_k, "zh")), "note"),
+            ]))
+    orphans = uncited()
+    if orphans:
+        raise SystemExit("references: nothing cites " + ", ".join(orphans))
 
     # ------------------------------------------------------------ 附錄
     A(PageBreak())

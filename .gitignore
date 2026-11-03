@@ -2,3 +2,12 @@ data/fonts/NotoSansTC-Regular.ttf
 data/fonts/NotoSansTC-Bold.ttf
 __pycache__/
 *.pyc
+
+# The registry microdata: ~950 MB of season zips, address files and the 金拍
+# cache. docs/REPRODUCING.md says where to get them. They are hashed in the
+# payload, so a fresh download can be checked against the published build.
+# No trailing slash: these are symlinks to the caches on this machine in some
+# checkouts, and "data/lvr/" does not match a symlink.
+data/lvr
+data/geo
+data/fasc

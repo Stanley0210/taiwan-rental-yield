@@ -14,10 +14,13 @@ authors:
     family-names: Jen
     # Add your ORCID iD here once you have it, e.g.
     # orcid: "https://orcid.org/0000-0000-0000-0000"
-# The DEPOSIT version, which is not the paper's. The paper is edition v1.0
-# (its cover says so, in both languages) and none of its claims changed in
-# 1.1; the archive did, because it gained the Chinese edition of the paper.
-version: "1.1"
+# The DEPOSIT version, which is not the paper's -- they move independently
+# and the paper's cover prints its own.
+#   deposit 1.0  paper v1.0, English only
+#   deposit 1.1  paper v1.0, plus the Traditional Chinese edition
+#   deposit 1.2  paper v1.1: references, the comparison against published
+#                estimates, a rewritten section 18, payload v2.9
+version: "1.2"
 date-released: "2026-11-03"
 license: CC-BY-4.0
 # Concept DOI: always resolves to the newest version. Each release also
