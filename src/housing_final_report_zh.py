@@ -37,6 +37,12 @@ from housing_final_report import (ACCENT, ACCENT2, ACCENT3, FRAME_W, INK, MUTED,
                                   hbars, histogram, legend, lines, n0, p2, pp, tbl,
                                   tiles, _s, PAPER_VERSION, PAPER_DATE)
 
+# The paper version is the EN module's: this edition renders the same claims,
+# so it is edition v1.0 in Chinese, not a v1.1 of the paper. Only the edition's
+# own date is new -- it did not exist on PAPER_DATE, and the cover says so
+# rather than letting v1.0's date stand for a document written two days later.
+ZH_EDITION_DATE = "2026-11-03"
+
 OUT = os.environ.get("REPORT_OUT_ZH",
                      os.path.join(R.ROOT, "docs", "HOUSING_FINAL_REPORT_ZH.pdf"))
 
@@ -172,6 +178,7 @@ def build(D):
     A(Spacer(1, 22 * mm))
     A(tbl([["", ""],
            ["論文版本", f"{PAPER_VERSION}  ·  {PAPER_DATE}"],
+           ["中文版", f"{ZH_EDITION_DATE}（與英文版 {PAPER_VERSION} 同一份內容）"],
            ["資料版本", f"v{prov['version']}  ·  建立於 {prov['built']}"],
            ["資料期間", f"{meta['seasons'][0]} → {meta['seasons'][1]}（共 {meta['n_seasons']} 季，"
                         "民國112年第4季 → 115年第2季）"],

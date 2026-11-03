@@ -14,8 +14,11 @@ authors:
     family-names: Jen
     # Add your ORCID iD here once you have it, e.g.
     # orcid: "https://orcid.org/0000-0000-0000-0000"
-version: "1.0"
-date-released: "2026-11-01"
+# The DEPOSIT version, which is not the paper's. The paper is edition v1.0
+# (its cover says so, in both languages) and none of its claims changed in
+# 1.1; the archive did, because it gained the Chinese edition of the paper.
+version: "1.1"
+date-released: "2026-11-03"
 license: CC-BY-4.0
 repository-code: "https://github.com/Stanley0210/taiwan-rental-yield"
 url: "https://stanley0210.github.io/taiwan-rental-yield/"
