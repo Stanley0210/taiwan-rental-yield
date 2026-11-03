@@ -1,7 +1,8 @@
 # 實價收益 — the visible range of Taiwan's rental yield
 
 **Live page:** https://stanley0210.github.io/taiwan-rental-yield/
-**Paper (PDF, v1.0):** [`docs/HOUSING_FINAL_REPORT.pdf`](docs/HOUSING_FINAL_REPORT.pdf) ·
+**Paper (PDF, v1.0):** [English](docs/HOUSING_FINAL_REPORT.pdf) ·
+[中文版](docs/HOUSING_FINAL_REPORT_ZH.pdf) ·
 **Technical report:** [`housing_report.pdf`](housing_report.pdf) ·
 **Open question:** [`docs/SOCIAL_HOUSING_NOTE.md`](docs/SOCIAL_HOUSING_NOTE.md)
 
@@ -30,7 +31,7 @@ of the ones you can measure. The buildings you *can* see are **8.2% dearer per
 
 **So the single number is replaced by a range.** Assuming nothing about the
 unseen 94%, the median lies in **[0.30%, 12.00%]**. Assuming they resemble seen
-buildings of the same type and price decile, **[1.90%, 4.27%]**. Every
+buildings of the same type and price decile, **[1.90%, 4.26%]**. Every
 assumption in between is written down, including one rung that makes the
 interval *wider* and is published because it fails.
 
@@ -72,9 +73,18 @@ payload version, each stating what moved and why, including the corrections.
 ```bash
 pip install -r requirements.txt          # pandas, numpy, reportlab, fonttools
 python src/underwrite.py                 # rebuilds housing_data.json
-python src/housing_final_report.py       # rebuilds the paper
-pytest tests/ -q                         # 919 tests
+python src/housing_final_report.py       # rebuilds the paper      -> docs/
+python src/housing_final_report_zh.py    # rebuilds the 中文版     -> docs/
+pytest tests/ -q                         # 265 tests
 ```
+
+The two editions of the paper read the same `housing_data.json`, so they cannot
+disagree about a number by accident; `tests/test_report_editions.py` asserts
+that every headline figure appears in both. They are separate generators rather
+than one bilingual template on purpose — a shared positional template is how
+the site's own JavaScript printed a count as a percentage four times, with the
+placeholder count matching and only the order wrong.
+
 
 `src/` is the pipeline: `underwrite.py` builds the payload, `fetch_lvr.py`
 cleans the registry, `normalize_addr.py` is the join key that decides when two

@@ -45,7 +45,7 @@ FONT_VAR = os.path.join(ROOT, "data", "fonts", "NotoSansTC.ttf")
 # variable font, so the only tracked font file is the upstream original.
 FONT_REG = os.environ.get("FONT_REG", os.path.join(ROOT, "data", "fonts", "NotoSansTC-Regular.ttf"))
 FONT_BOLD = os.environ.get("FONT_BOLD", os.path.join(ROOT, "data", "fonts", "NotoSansTC-Bold.ttf"))
-OUT = os.environ.get("REPORT_OUT", os.path.join(HERE, "HOUSING_FINAL_REPORT.pdf"))
+OUT = os.environ.get("REPORT_OUT", os.path.join(ROOT, "docs", "HOUSING_FINAL_REPORT.pdf"))
 
 # The citable edition of this write-up. The payload carries its own version;
 # these two move independently and the cover prints both.

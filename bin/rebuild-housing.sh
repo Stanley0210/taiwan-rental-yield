@@ -28,7 +28,7 @@ if [ "${1:-}" != "--verify" ]; then
   [ -n "$want" ] || want=$(awk '{print $1}' < "$OUT.sha256" 2>/dev/null)
   keep="$(mktemp)"; cp "$OUT" "$keep" 2>/dev/null || true
   echo "==> rebuilding $OUT  (downloads ~200 MB of season zips on a cold cache)"
-  "$PY" underwrite.py
+  "$PY" src/underwrite.py
 else
   [ -f "$OUT.sha256" ] || { echo "!! $OUT.sha256 missing"; exit 1; }
   want=$(awk '{print $1}' < "$OUT.sha256")

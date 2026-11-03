@@ -165,6 +165,7 @@
                  'docs/REPRODUCING.md -- one command rebuilds it and checks housing_data.json.sha256'],
     pvCite:     ['v%s（%s）· 來源快照 %s', 'v%s (%s) · source snapshot %s'],
     pvPdf:      ['PDF 版', 'PDF'],
+    pvPaper:    ['研究報告 PDF', 'Paper (PDF)'],
     pvSha:      ['資料雜湊', 'payload SHA-256'],
 
     sBuildings: ['配對建物', 'Buildings matched'],
@@ -5762,6 +5763,9 @@
               D.meta.provenance.built,
               (D.meta.provenance.source && D.meta.provenance.source.sha256 || '').slice(0, 12))) +
             ' &middot; <a href="housing_report.pdf">' + esc(S('pvPdf')) + '</a>' +
+            // The paper exists in both languages; link the reader's own.
+            ' &middot; <a href="docs/HOUSING_FINAL_REPORT' +
+              (LANG === 'zh' ? '_ZH' : '') + '.pdf">' + esc(S('pvPaper')) + '</a>' +
             ' &middot; <a href="housing_data.json.sha256">' + esc(S('pvSha')) + '</a>'
           : '') +
         '</p></div></footer>' +

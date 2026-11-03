@@ -17,9 +17,12 @@ import re
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# The pipeline modules live under src/ in this repository; in the project
+# this was extracted from they sit at the root.
+SRC = os.path.join(ROOT, "src")
 JS = os.path.join(ROOT, "housing.js")
 CSS = os.path.join(ROOT, "housing.css")
-HTML = os.path.join(ROOT, "housing.html")
+HTML = os.path.join(ROOT, "index.html")   # housing.html in the source project
 
 
 def _read(p):
@@ -1463,7 +1466,7 @@ def test_presale_never_reports_a_yield():
     the headline is structurally blind to. If a yield ever appears in this block
     it means something was matched that should not have been.
     """
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     i = src.index("def presale_block")
     whole = src[i:src.index("\ndef ", i + 1)]
     assert "can never have a yield" in whole, "the reason is undocumented"
@@ -1492,7 +1495,7 @@ def test_presale_curve_never_ships_without_its_placebo():
     them. The placebo is what makes that visible, so the curve may never ship
     without it, and the block must not claim the question is settled.
     """
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     i = src.index("def presale_block")
     body = src[i:src.index("\ndef ", i + 1)]
     assert "placebo_pct" in body, "the placebo curve is not computed"
@@ -1549,7 +1552,7 @@ def test_presale_comparison_group_excludes_contracts_signed_before_completion():
     assert a < 0, "a pre-completion contract must have negative age"
     assert not (0 <= a <= 2), "the filter must exclude contracts signed pre-completion"
 
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     i = src.index("def presale_block")
     body = src[i:src.index("\ndef ", i + 1)]
     assert "115 - pd.to_numeric" not in body, "the hardcoded year anchor is back"
@@ -1670,7 +1673,7 @@ def test_presale_curve_publishes_cluster_intervals():
     cell count flatters the evidence. The page bootstraps over clusters
     everywhere else and this rung was the odd one out.
     """
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     i = src.index("def presale_block")
     body = src[i:src.index("\ndef ", i + 1)]
     assert "_cluster_ci" in body, "no cluster bootstrap"
@@ -1686,7 +1689,7 @@ def test_presale_publishes_its_reach():
     dropped building, a headline computed on 35% of the stock cannot arrive with
     nothing saying so.
     """
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     i = src.index("def presale_block")
     body = src[i:src.index("\ndef ", i + 1)]
     for k in ("reach_dwellings", "reach_pct", "reach_districts", "floor_sensitivity"):
@@ -1702,7 +1705,7 @@ def test_tolerant_read_is_presale_only_and_reports_what_it_skipped():
     And a recovery that does not say what it cost is just a quieter kind of loss,
     so the skipped-row count is printed.
     """
-    src = _read(os.path.join(ROOT, "fetch_lvr.py"))
+    src = _read(os.path.join(SRC, "fetch_lvr.py"))
     assert "def read_csv_from_zip(zpath, member, tolerant=False)" in src, (
         "tolerant reading must be opt-in and default off"
     )
@@ -1725,7 +1728,7 @@ def test_auction_source_is_labelled_as_金拍_not_法拍():
     of the channel, so the distinction is stated in the fetcher, in the block,
     and on the page itself.
     """
-    src = _read(os.path.join(ROOT, "fetch_fasc.py"))
+    src = _read(os.path.join(SRC, "fetch_fasc.py"))
     assert "This is 金拍, NOT 法拍" in src, "the fetcher does not state which auction system it reads"
     js = _read(JS)
     assert "aucP" in js, "the page does not carry the 金拍/法拍 disclaimer string"
@@ -1739,7 +1742,7 @@ def test_auction_block_never_reaches_the_network_at_build_time():
     to disk. If the cache is absent the block is empty and the section does not
     render — the page loses a section rather than the build losing a run.
     """
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     i = src.index("def fasc_block")
     body = src[i:src.index("def within_building_block")]
     for bad in ("requests.", "fetch_sessions", "fetch_items", "load_auctions"):
@@ -1755,7 +1758,7 @@ def test_auction_block_makes_no_price_comparison():
     like-for-like gap would be measuring the auction calendar. The block reports
     the competition rate and the registry-visibility rate, and no price gap.
     """
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     i = src.index("def fasc_block")
     body = src[i:src.index("def within_building_block")]
     assert "NOT a price comparison" in body, "the no-price-comparison rule is undocumented"
@@ -1772,7 +1775,7 @@ def test_floor_is_measured_on_both_sides():
     step — and the sale side must not sit behind the rent guard, or a run with
     no usable rents silently drops it.
     """
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     i = src.index("def within_building_block")
     j = src.index("\ndef ", i + 1)          # to the next top-level def, not a byte guess
     body = src[i:j]
@@ -1812,7 +1815,7 @@ def test_related_party_sales_are_excluded_from_the_measurement():
     24.9% low inflates that building's gross yield by 33% — always upward,
     which is the one direction this page cannot afford to be wrong in.
     """
-    src = _read(os.path.join(ROOT, "fetch_lvr.py"))
+    src = _read(os.path.join(SRC, "fetch_lvr.py"))
     assert "RELATED_PARTY" in src, "no related-party filter"
     assert "exclude_related=True" in src, "the filter must default ON"
     assert "備註" in src, "the filter must read the registry's note column"
@@ -1825,7 +1828,7 @@ def test_related_party_is_a_ladder_rung_and_a_waterfall_step():
     waterfall accounts for every building dropped. A ~9% filter that appeared in
     neither would be silent attrition on the one page built to refuse it.
     """
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     assert '"related"' in src, "related-party is not a ladder rung"
     assert "排除親友間交易" in src, "the rung has no Chinese label"
     assert "買賣是親友間交易，不是市場價" in src, "no waterfall step for it"
@@ -1843,7 +1846,7 @@ def test_the_coverage_denominator_keeps_related_party_buildings():
     sale on record. Dropping it from `universe_buildings` would shrink the
     denominator and make coverage look better than it is.
     """
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     i = src.index("def universe_buildings")
     body = src[i:i + 1400]
     assert "exclude_related=False" in body, (
@@ -1919,7 +1922,7 @@ def test_payload_is_strict_json_with_no_nan(payload):
     and which fails SILENTLY in fetch().json() -- a blank page with a clean
     console. allow_nan=False makes it a build error instead."""
     import underwrite as U
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     assert "allow_nan=False" in src
     for b in payload["buildings"][:500]:
         for k in ("mrt", "fl"):
@@ -2321,7 +2324,7 @@ def test_the_histogram_discloses_that_it_clips():
     """underwrite.histogram() clips values into range before binning, so both
     end bars are pile-ups. The right-hand spike is real and it is an artefact,
     and the page has to say so."""
-    assert "v.clip(lo, hi)" in _read(os.path.join(ROOT, "underwrite.py"))
+    assert "v.clip(lo, hi)" in _read(os.path.join(SRC, "underwrite.py"))
     assert "histClip" in _js()
 
 
@@ -2538,7 +2541,7 @@ def test_low_use_is_context_not_the_vacancy_input(payload):
     assert lu["stock_period"].endswith("Q2" if lu["period"].endswith("H1") else "Q4")
     js = _js()
     assert "moiLuWhy" in js, "the not-an-input caveat is missing from the page"
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     assert "DEFAULT_VACANCY_PCT = 5.0" in src, "the vacancy default was changed -- by the MOI figure?"
 
 
@@ -2749,7 +2752,7 @@ def test_volume_existing_excludes_presale_origin_rows(payload):
     assert v["presale_origin_pct"] == round(k["presale_origin"] / k["total"] * 100, 1)
     assert "建築完成年月" in v["basis"]["existing"]
     assert sum(v["series"]["all"]["existing"]) <= k["existing"]
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     assert "\ndef roc_ym(" in src, "the existing-home predicate must be one module-level function"
     pb = src[src.index("def presale_block("):src.index("def load_presale_window(") if
              src.index("def load_presale_window(") > src.index("def presale_block(") else len(src)]
@@ -3346,7 +3349,7 @@ def test_the_building_type_map_is_single_sourced(payload):
     """coverage_block read its denominator from the universe frame and its
     numerator from the matched frame, so six buildings were counted under one
     type in one and another in the other. The superseded rate stays visible."""
-    src = _read(os.path.join(ROOT, "underwrite.py"))
+    src = _read(os.path.join(SRC, "underwrite.py"))
     assert "_ubtype = dict(zip(zip(ub.county, ub.k), ub.bldg_type))" in src
     cov = {c["type"]: c for c in payload["coverage"]}
     for t, c in cov.items():
@@ -3818,7 +3821,7 @@ def test_the_pdf_carries_its_own_generator_digest(payload):
         pytest.skip("housing_report.pdf not built, or pypdf unavailable")
     assert "Generator SHA-256" in t, "the report does not identify the code that made it"
     import hashlib
-    with open(os.path.join(ROOT, "housing_report.py"), "rb") as f:
+    with open(os.path.join(SRC, "housing_report.py"), "rb") as f:
         want = hashlib.sha256(f.read()).hexdigest()
     assert want[:8] in t.replace("\n", "").replace(" ", ""), (
         "the report's generator digest is stale -- re-render it")
