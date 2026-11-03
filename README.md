@@ -1,5 +1,7 @@
 # 實價收益 — the visible range of Taiwan's rental yield
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23902646.svg)](https://doi.org/10.5281/zenodo.23902646)
+
 **Live page:** https://stanley0210.github.io/taiwan-rental-yield/
 **Paper (PDF, v1.0):** [English](docs/HOUSING_FINAL_REPORT.pdf) ·
 [中文版](docs/HOUSING_FINAL_REPORT_ZH.pdf) ·
@@ -95,6 +97,22 @@ The season archives themselves are ~200 MB and are not committed;
 `docs/REPRODUCING.md` says where to get them and how to tell a data difference
 from a code difference. `bin/rebuild-housing.sh` rebuilds and compares against
 the committed hash.
+
+## Citing it
+
+```
+Jen, S. (2026). 實價收益 — the visible range of Taiwan's rental yield.
+Zenodo. https://doi.org/10.5281/zenodo.23902646
+```
+
+`10.5281/zenodo.23902646` is the **concept DOI**: it always resolves to the
+newest version. To cite one specific release instead, use that release's own
+DOI from its Zenodo page — v1.0 is `10.5281/zenodo.23902647`.
+
+Note that the deposit version and the paper version are different things. The
+archive is at v1.1 because it gained the Chinese edition of the paper; the
+paper itself is still edition v1.0, as both covers say, because none of its
+claims changed.
 
 ## Source and licence
 
