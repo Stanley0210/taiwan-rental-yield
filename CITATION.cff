@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "實價收益 — the visible range of Taiwan's rental yield"
+abstract: >-
+  A rental yield requires a sale price and a rent for the same dwelling.
+  Taiwan's public transaction registry (實價登錄) records both, but only 6.25%
+  of buildings with a recorded sale also carry a matchable lease. This work
+  pairs real sales with real leases in the same building, publishes the yield,
+  and quantifies how little of the market that yield describes — then bounds
+  the unobserved remainder rather than assuming it resembles what is seen.
+type: software
+authors:
+  - given-names: Stanley
+    family-names: Jen
+    # Add your ORCID iD here once you have it, e.g.
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+version: "1.0"
+date-released: "2026-11-01"
+license: CC-BY-4.0
+repository-code: "https://github.com/Stanley0210/taiwan-rental-yield"
+url: "https://stanley0210.github.io/taiwan-rental-yield/"
+keywords:
+  - housing
+  - rental yield
+  - Taiwan
+  - partial identification
+  - selection bias
+  - administrative data
+  - 實價登錄
