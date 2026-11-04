@@ -37,6 +37,16 @@ buildings of the same type and price decile, **[1.90%, 4.26%]**. Every
 assumption in between is written down, including one rung that makes the
 interval *wider* and is published because it fails.
 
+**And that resemblance assumption is now tested, not just stated — it half
+fails.** Conditioning on type and price decile absorbs **77%** of the age gap
+between matched and unmatched buildings, but it makes the *size* gap **worse**,
+from −0.22 to −0.53 standard deviations, with 26 of 30 cells unbalanced and
+every one of the worst six in the same direction. The cells are cut on price per
+坪, and 坪 is the denominator of that, so banding on the ratio frees the size
+gap instead of closing it. `[1.90%, 4.26%]` is therefore a stated-assumption
+interval, not a validated one. It cannot be repaired by conditioning on size as
+well: at 6.25% coverage the data runs out before the conditioning does.
+
 **Why it cannot be narrowed.** A median's worst-case interval only leaves the
 support band once more than half the population is observed. This registry can
 never show more than ~24%. The width is a property of the registry, not of the
@@ -151,6 +161,7 @@ they move independently:
 | 1.0 | v1.0 | first citable edition, English only |
 | 1.1 | v1.0 | the archive gained the Traditional Chinese edition; no claim moved |
 | 1.2 | v1.1 | references, the comparison above, a rewritten §18, payload v2.9 |
+| 1.3 | v1.2 | the resemblance assumption tested and found to half fail; payload v2.10 |
 
 ## Source and licence
 

@@ -52,6 +52,12 @@ ZH_EDITION_DATE = "2026-11-03"
 # rather than translated at render time, for the same reason the two reports
 # are separate generators: prose belongs to its edition.
 PAPER_CHANGES_ZH = [
+    ("v1.2", "2026-11-04",
+     "檢驗了支撐區間那一階所依賴的「相似性假設」，並公布結果：它只有一半成立。"
+     "格子吸收了可配對與配不到建物之間 77% 的屋齡落差，卻把面積落差變得更大。"
+     "沒有任何數字改變——區間一樣，而且一直都標示為依賴假設——"
+     "但它的身分變了：從一個沒有人檢查過的假設，變成一個在可量測的維度上被資料反駁的假設。"
+     "第 6 節把這件事寫出來。"),
     ("v1.1", "2026-11-03",
      "新增第 19 節參考文獻，並據此在第 4 節首次與已發表的估計對照——"
      "其中包括：目前流通的臺灣報酬率數字，來源是刊登網站的彙整而不是成交資料。"
@@ -165,6 +171,8 @@ def build(D):
     fm = D["filter_marginals"]
     mm_ = D["marginal_mechanism"]
     boot = D["bootstrap"]
+    rz_meta = D.get("resemblance") or {}
+    rz = rz_meta.get("vars") or {}
     disp = D["dispersion"]
     conc = D["concentration"]
     rb = D["rent_bias"]
@@ -276,7 +284,10 @@ def build(D):
         f"<b>在明列的假設下，全部 {n0(pid['scope']['n'])} 棟建物的報酬率中位數落在 "
         f"[{rungs['type_price']['gross']['lo']:.2f}%、{rungs['type_price']['gross']['hi']:.2f}%] 之間。</b>"
         "若不做任何假設，區間就是整個品質區間；而且再怎麼改進清理方式都無法縮小它，"
-        "因為中位數只有在觀察到超過半數母體之後才可能被收窄。",
+        "因為中位數只有在觀察到超過半數母體之後才可能被收窄。"
+        f"<b>這個假設現在被檢驗過了，而它只有一半成立：</b>格子吸收了可配對與配不到建物之間"
+        f"{rz['built']['absorbed_pct']:.0f}% 的屋齡落差，卻把面積落差變得<i>更大</i>（第 6 節）。"
+        "這個區間是「在明列假設下」的區間，不是一個已被驗證的區間。",
         f"<b>社會住宅會扭曲實價登錄的原始租金。</b>整戶出租租約中有 {rb['social_share_pct']:.1f}% 是"
         f"受補貼的社會住宅，每坪租金低於市場 {abs(rb['gap_pct']):.1f}%。"
         "任何直接拿實價登錄原始租金算報酬率的人，量到的主要是這筆補貼。",
@@ -669,6 +680,56 @@ def build(D):
     A(P(f"只套用在公寓上（可配對率 {p2(un['coverage_pct'])}），區間是 "
         f"[{un['support'][0]:.2f}%、{un['support'][1]:.2f}%]，寬度 {un['width']:.2f} 個百分點。"
         "這個寬度足以把第 9 節整個公寓與大樓的差距吞掉。"))
+
+    A(P("相似性假設是真的嗎？", "h2"))
+    A(P("支撐階以上的每一階，都建立在同一個想法上：一棟配不到租約的建物，"
+        "長得像它所屬格子裡<i>可配對</i>的那些建物。到 v1.1 為止的每一版都把這件事寫出來、"
+        "做成階梯、誠實標示——卻從來沒有檢驗過它，"
+        "這使它成為本報告裡唯一一個被主張、而不是被量測的承重論點。"
+        "它是可以檢驗的，而且就檢驗在格子沒有條件化的那兩件事上：建物多老，以及建物多大。"
+        "如果格子真的做到那一階所宣稱的事，可配對與配不到建物之間的落差，應該在格子內部收斂。"))
+    A(P(f"以標準化差異（standardised difference，平均差除以合併標準差）報告，這個量尺與單位無關，"
+        f"慣例上 |d| &lt; {rz_meta['balanced_at']} 視為平衡。"
+        f"一個格子要有 {rz_meta['min_cell']} 棟可配對建物才會被計入，"
+        "所以少數幾棟不會壓過一整個十分位。", "note"))
+    bz, az = rz["built"], rz["area"]
+    A(tbl([["", "屋齡（建成年）", "面積（坪）"],
+           ["未條件化的 d（全母體）", f"{bz['unconditional_d']:+.3f}", f"{az['unconditional_d']:+.3f}"],
+           ["格子內 |d|（依規模加權）", f"{bz['within_cell_abs_d']:.3f}", f"{az['within_cell_abs_d']:.3f}"],
+           ["格子內帶號 d", f"{bz['within_cell_signed_d']:+.3f}", f"{az['within_cell_signed_d']:+.3f}"],
+           ["被格子吸收的比例", f"{bz['absorbed_pct']:.1f}%", f"{az['absorbed_pct']:.1f}%"],
+           ["未達平衡的格子", f"{bz['cells_unbalanced']} / {bz['cells']}",
+            f"{az['cells_unbalanced']} / {az['cells']}"]],
+          [58 * mm, 32 * mm, 32 * mm], right=(1, 2), size=7.4))
+    A(Spacer(1, 6))
+    A(P(f"<b>屋齡：大致被吸收了。</b>在全母體上，可配對建物比配不到的新了 "
+        f"{bz['unconditional_d']:+.2f} 個標準差。進到格子內之後降到 {bz['within_cell_abs_d']:.3f}，"
+        f"也就是條件化消掉了其中 {bz['absorbed_pct']:.0f}%。"
+        f"剩下來的雖然小，卻不是雜訊：帶號平均是 {bz['within_cell_signed_d']:+.3f}，"
+        f"方向與原始落差相同，而且 {bz['cells']} 個格子裡仍有 {bz['cells_unbalanced']} 個落在平衡帶之外。"
+        "可配對建物比同一格子裡的鄰居更新。"))
+    A(P(f"<b>面積：不但沒有變好，反而更糟。</b>未條件化時，可配對建物小了 "
+        f"{abs(az['unconditional_d']):.2f} 個標準差。進到格子內之後它沒有縮小，"
+        f"反而擴大到 {az['within_cell_abs_d']:.3f}——往錯誤方向走了 {abs(az['absorbed_pct']):.0f}%，"
+        f"{az['cells']} 個格子裡有 {az['cells_unbalanced']} 個未達平衡，"
+        "而且最差的六個格子全部帶同一個方向。機制並不神祕：格子是依每坪單價切的，"
+        "而「坪」正是每坪單價的分母。用一個比值分帶，等於把原本部分抵消面積效果的價格效果抽掉，"
+        "於是在同一個價帶之內，面積的落差比在全母體上表現得更自由。"))
+    A(P("面積上 |d| 最大的格子：" + "、".join(
+        f"{w['type']}第 {w['decile']} 十分位（{w['d']:+.2f}）" for w in az["worst"][:4]) + "。", "note"))
+    A(callout(
+        "所以主數字的那個區間，是一個<b>「在明列假設下」</b>的區間，不是一個已被驗證的區間；"
+        "而且在一個可量測的維度上，那個假設不只是「未經查證」，而是被資料反駁。"
+        "算術本身沒有任何改變——每一階對它自己所標示的假設而言仍然是精確界線——"
+        "但讀者應該把「從品質區間收窄下來」這件事，視為建立在一個資料只支持一半的條件之上。<br/><br/>"
+        "而且這件事沒辦法靠「連面積也一起條件化」來修。屋齡那一階已經示範了會發生什麼事："
+        f"多加一個維度之後，{rungs['type_price_age']['cells']} 個格子裡有 "
+        f"{rungs['type_price_age']['cells_below_min']} 個低於最低棟數，"
+        f"{n0(rungs['type_price_age']['fellback_universe_n'])} 棟建物退回較弱的假設，"
+        f"所以它反而把區間<i>撐寬</i>了 {abs(rungs['type_price_age']['buys_pp']):.2f} 個百分點。"
+        f"在 {p2(h['coverage_pct'])} 的覆蓋率之下，資料會比條件化先用完。"
+        "這和第 6 節其餘部分撞到的是同一面牆，只是從另一個方向撞上去。",
+        "這對那個區間的意義"))
 
     # ------------------------------------------------------------ 7 階梯
     A(CondPageBreak(95 * mm))

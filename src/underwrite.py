@@ -50,7 +50,7 @@ OUT = os.environ.get("LVR_OUT", "housing_data.json")
 # can tell whether they are looking at different code or different data --
 # 實價登錄 grows every quarter, and without this a rebuild that disagrees is
 # indistinguishable from a bug.
-PAYLOAD_VERSION = "2.9"
+PAYLOAD_VERSION = "2.10"
 
 MATCH_WINDOW_Q = 4          # +/- quarters a sale and a lease may be apart
 
@@ -1553,6 +1553,87 @@ def universe_buildings(raw_sales, with_rows=False):
         built=("built_roc_y", "median"))
     ub["ppp"] = ub.price / ub.area
     return (ub, d) if with_rows else ub
+
+
+RESEMBLE_BALANCED = 0.10   # |standardised difference| below this = balanced
+
+
+def resemblance_balance(b, ub, deciles=10):
+    """Does conditioning on type x price decile absorb the selection gap?
+
+    This tests partial_id's load-bearing rung -- the one that narrows the
+    interval from the whole quality band to roughly [1.9, 4.3] -- which assumes
+    an unmatched building looks like the MATCHED buildings of its own type and
+    price decile. Every earlier version stated that assumption, laddered it and
+    labelled it honestly, and never checked it.
+
+    It is checkable, on the two observables the cells do NOT condition on: age
+    and floor area. Across the whole universe matched buildings run about twelve
+    years newer and some 7% smaller (section 5 reports exactly that). If the
+    cells absorb it, the rung is credible. If a gap survives INSIDE the cells,
+    the conditioning does not do what the rung claims, and the published
+    interval is narrower than the data can support.
+
+    Reported as a standardised difference -- the mean gap over the pooled SD --
+    which is the usual scale-free balance measure, with |d| < 0.10 the
+    conventional threshold for "balanced". Cell-size weighted, so a 30-building
+    cell cannot outvote a 6,000-building one. The signed mean is published
+    beside the absolute one on purpose: mixed signs are noise, while a
+    consistent sign is residual selection the cells did not remove.
+    """
+    if b.empty or ub.empty:
+        return {}
+    keys = set(zip(b.county, b.k))
+    u = ub.assign(matched=[(c, k) in keys for c, k in zip(ub.county, ub.k)])
+    hit = int(u.matched.sum())
+    if hit != len(b):
+        # The join IS the test. A silent mismatch would quietly compare the
+        # wrong two groups, so it fails loudly instead of publishing a number.
+        return {"error": f"joined {hit} of {len(b)} matched buildings on (county, k)"}
+    edges = np.quantile(u.ppp.dropna(), np.linspace(0, 1, deciles + 1))
+    edges[0], edges[-1] = -np.inf, np.inf
+    u = u.assign(pb=pd.cut(u.ppp, edges, labels=False, duplicates="drop"))
+
+    def sdiff(m, n, col):
+        a, c = m[col].dropna(), n[col].dropna()
+        if len(a) < 2 or len(c) < 2:
+            return None
+        sd = float(np.sqrt((a.var(ddof=1) + c.var(ddof=1)) / 2.0))
+        return None if sd == 0 else float((a.mean() - c.mean()) / sd)
+
+    out = {"deciles": deciles, "balanced_at": RESEMBLE_BALANCED,
+           "min_cell": PID_MIN_CELL, "vars": {}}
+    for col in ("built", "area"):
+        uncond = sdiff(u[u.matched], u[~u.matched], col)
+        rows, wsum, acc, acc_signed = [], 0.0, 0.0, 0.0
+        for (t, pbv), g in u.groupby(["bldg_type", "pb"]):
+            m, n = g[g.matched], g[~g.matched]
+            if len(m) < PID_MIN_CELL:
+                continue
+            d = sdiff(m, n, col)
+            if d is None:
+                continue
+            w = float(len(m))
+            rows.append({"type": t, "decile": int(pbv) + 1, "matched": int(len(m)),
+                         "unmatched": int(len(n)), "d": round(d, 3)})
+            acc += abs(d) * w
+            acc_signed += d * w
+            wsum += w
+        within = acc / wsum if wsum else None
+        signed = acc_signed / wsum if wsum else None
+        rows.sort(key=lambda r: -abs(r["d"]))
+        out["vars"][col] = {
+            "unconditional_d": round(uncond, 3) if uncond is not None else None,
+            "within_cell_abs_d": round(within, 3) if within is not None else None,
+            "within_cell_signed_d": round(signed, 3) if signed is not None else None,
+            "absorbed_pct": (round((1 - within / abs(uncond)) * 100, 1)
+                             if within is not None and uncond else None),
+            "cells": len(rows),
+            "cells_unbalanced": sum(1 for r in rows if abs(r["d"]) >= RESEMBLE_BALANCED),
+            "buildings_covered": int(wsum),
+            "worst": rows[:6],
+        }
+    return out
 
 
 def post_stratify(b, ub, deciles=10):
@@ -4651,6 +4732,7 @@ def build(last_season=LAST_SEASON):
         "rent_bias": L.social_vs_market_rents(raw_rents),
         "coverage_waterfall": wf,
         "post_strat": post_stratify(b, ub),
+        "resemblance": resemblance_balance(b, ub),
         "bootstrap": bootstrap_cis(pairs, b),
         "dispersion": dispersion(pairs, b),
         "repairs_spec": repairs_specification(b),

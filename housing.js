@@ -638,6 +638,20 @@
     pidR_type_trim: ['…落在同型態的第 5 到第 95 百分位（近似假設）', '...inside their own type\'s 5th-95th percentile (a resemblance assumption)'],
     pidR_type_price: ['…同型態、且同一個每坪價十分位', '...within their own type AND their own price-per-ping decile'],
     pidR_type_price_age: ['…再加同一個屋齡區間（反而變寬）', '...plus their own age band (which makes it WIDER)'],
+    // The resemblance test. Deliberately S(), never Sf(): the numbers are read
+    // off the payload below, so no positional template can reorder them.
+    resH:       ['相似性假設是真的嗎？', 'Is the resemblance assumption true?'],
+    resLede:    ['支撐階以上的每一階，都假設配不到租約的建物，長得像它所屬格子裡可配對的那些。到目前為止，這件事一直被寫出來、卻從來沒有被檢驗過——它是本站唯一一個被主張、而不是被量測的承重論點。它是可以檢驗的，就檢驗在格子沒有條件化的那兩件事上：建物多老，以及建物多大。如果格子真的有用，可配對與配不到之間的落差，應該在格子內部收斂。',
+                 'Every rung above the support rung assumes an unmatched building resembles the matched buildings of its own cell. Until now that was stated and never tested, which made it the only load-bearing claim on this site that was asserted rather than measured. It is testable, on the two things the cells do not condition on: how old a building is and how big it is. If the cells work, the gap between matched and unmatched buildings should close inside them.'],
+    resColAge:  ['屋齡（建成年）', 'age (built year)'],
+    resColArea: ['面積（坪）', 'area (ping)'],
+    resRowU:    ['未條件化的 d（全母體）', 'unconditional d, whole universe'],
+    resRowW:    ['格子內 |d|（依規模加權）', 'within-cell |d|, size-weighted'],
+    resRowS:    ['格子內帶號 d', 'within-cell signed d'],
+    resRowA:    ['被格子吸收的比例', 'absorbed by the cells'],
+    resRowC:    ['未達平衡的格子', 'cells not balanced'],
+    resNote:    ['屋齡大致被吸收了，剩下的殘差雖小但方向一致。面積則不但沒有變好，反而更糟——而且機制並不神祕：格子是依每坪單價切的，而「坪」正是它的分母，用比值分帶等於把原本部分抵消面積效果的價格效果抽掉。所以上面那個區間，是「在明列假設下」的區間，不是一個已被驗證的區間；在一個可量測的維度上，那個假設不只是未經查證，而是被資料反駁。這也修不了：屋齡那一階已經示範過，多加一個維度只會讓格子的棟數先用完。',
+                 'Age is mostly absorbed, and what survives is small but points consistently one way. Area is not absorbed at all -- it gets worse -- and the mechanism is not mysterious: the cells are cut on price per ping, and ping is the denominator of that ratio, so banding on it strips out the price channel that was partly offsetting the size channel. The interval above is therefore a stated-assumption interval, not a validated one, and on one measurable dimension the assumption is contradicted rather than merely unverified. It cannot be repaired by conditioning further: the age rung already shows that a third dimension runs the cells out of buildings first.'],
     pidR_mts_up:   ['若配不到的更高（價格梯度，未量測）', 'if the unmatched yield MORE (price gradient, unmeasured)'],
     pidR_mts_down: ['若配不到的更低（流動性選擇，未量測）', 'if the unmatched yield LESS (liquidity selection, unmeasured)'],
     pidBuys:    ['短 %spp', '%spp shorter'],
@@ -2715,6 +2729,33 @@
     var dh = D.walkup_resolution && D.walkup_resolution.precision;
     var mts = {}; (p.mts || []).forEach(function (m) { mts[m.key] = m; });
     var ci = p.endpoint_ci;
+
+    // The resemblance test, straight off the payload. A number here is never
+    // routed through a positional template.
+    var RZ = D.resemblance && D.resemblance.vars, resBlk = '';
+    if (RZ && RZ.built && RZ.area) {
+      var rzb = RZ.built, rza = RZ.area;
+      var sgn = function (v) { return (v >= 0 ? '+' : '') + v.toFixed(3); };
+      var rrow = function (key, a, b) {
+        return '<tr><td>' + esc(S(key)) + '</td><td class="num">' + a +
+               '</td><td class="num">' + b + '</td></tr>';
+      };
+      resBlk =
+        '<h3>' + esc(S('resH')) + '</h3>' +
+        '<p class="hs-prose">' + esc(S('resLede')) + '</p>' +
+        '<div class="hs-scroll"><table style="font-size:13.5px" aria-label="' +
+          esc(S('resH')) + '"><thead><tr><th></th><th class="num">' +
+          esc(S('resColAge')) + '</th><th class="num">' + esc(S('resColArea')) +
+          '</th></tr></thead><tbody>' +
+          rrow('resRowU', sgn(rzb.unconditional_d), sgn(rza.unconditional_d)) +
+          rrow('resRowW', rzb.within_cell_abs_d.toFixed(3), rza.within_cell_abs_d.toFixed(3)) +
+          rrow('resRowS', sgn(rzb.within_cell_signed_d), sgn(rza.within_cell_signed_d)) +
+          rrow('resRowA', rzb.absorbed_pct.toFixed(1) + '%', rza.absorbed_pct.toFixed(1) + '%') +
+          rrow('resRowC', rzb.cells_unbalanced + ' / ' + rzb.cells,
+                          rza.cells_unbalanced + ' / ' + rza.cells) +
+        '</tbody></table></div>' +
+        '<div class="hs-callout"><p>' + esc(S('resNote')) + '</p></div>';
+    }
     return sec('pidEy', null, 0,
       '<h2>' + esc(Sf('pidH', f2(sc.coverage_pct), f2(100 - sc.coverage_pct))) + '</h2>' +
       '<p class="hs-prose lede">' + esc(Sf('pidLede', n0(sc.matched), n0(sc.n),
@@ -2725,6 +2766,7 @@
       '<p class="hs-prose">' + esc(Sf('pidTrimWarn', Math.abs(trim.buys_pp).toFixed(2))) + '</p>' +
       (age ? '<p class="hs-prose">' + esc(Sf('pidAgeWarn', n0(age.cells_below_min), n0(age.cells),
         n0(p.min_cell), n0(age.fellback_universe_n), Math.abs(age.buys_pp).toFixed(2))) + '</p>' : '') +
+      resBlk +
       (mts.mts_up && mts.mts_down ? '<p class="hs-prose">' + esc(Sf('pidMts',
         (p.ppp_gap_pct == null ? (D.age && D.age.ppp_diff_pct) : p.ppp_gap_pct),
         f2(mts.mts_up.gross.lo), f2(mts.mts_up.gross.hi),

@@ -54,13 +54,21 @@ OUT = os.environ.get("REPORT_OUT", os.path.join(ROOT, "docs", "HOUSING_FINAL_REP
 
 # The citable edition of this write-up. The payload carries its own version;
 # these two move independently and the cover prints both.
-PAPER_VERSION = "v1.1"
-PAPER_DATE = "2026-11-03"
+PAPER_VERSION = "v1.2"
+PAPER_DATE = "2026-11-04"
 
 # Section 16 registers corrections to numbers. This registers editions of the
 # write-up, which is a different thing and was missing: v1.0 had no way to say
 # what a later version had changed. Newest first; the cover prints the top row.
 PAPER_CHANGES = [
+    ("v1.2", "2026-11-04",
+     "Tests the resemblance assumption that every rung above the support rung "
+     "rests on, and publishes the result, which is that it only half holds: the "
+     "cells absorb 77% of the age gap between matched and unmatched buildings "
+     "and make the size gap WORSE. No number moved -- the interval is the same "
+     "and was always labelled assumption-dependent -- but its standing changed, "
+     "from an assumption nobody had checked to one the data contradicts on a "
+     "measurable dimension. Section 6 says so."),
     ("v1.1", "2026-11-03",
      "Adds section 19, the references, and with it the first comparison against "
      "published estimates (section 4) -- including that the Taiwan yield in "
@@ -426,6 +434,8 @@ def build(D):
     fm = D["filter_marginals"]
     mm_ = D["marginal_mechanism"]
     boot = D["bootstrap"]
+    rz_meta = D.get("resemblance") or {}
+    rz = rz_meta.get("vars") or {}
     disp = D["dispersion"]
     conc = D["concentration"]
     rb = D["rent_bias"]
@@ -548,7 +558,11 @@ def build(D):
         f"<b>Under stated assumptions, the yield of all {n0(pid['scope']['n'])} buildings lies in "
         f"[{rungs['type_price']['gross']['lo']:.2f}%, {rungs['type_price']['gross']['hi']:.2f}%].</b> "
         "With no assumptions it is the entire quality band, and no amount of better cleaning can "
-        "change that, because a median can only be bounded once more than half the population is seen.",
+        "change that, because a median can only be bounded once more than half the population is seen. "
+        f"<b>That assumption is now tested, and it only half holds:</b> the cells absorb "
+        f"{rz['built']['absorbed_pct']:.0f}% of the age gap between matched and unmatched buildings "
+        f"and make the size gap <i>worse</i> (§6). The interval is a stated-assumption interval, not "
+        "a validated one.",
         f"<b>Social housing distorts raw registry rents.</b> {rb['social_share_pct']:.1f}% of whole-unit "
         f"leases are subsidised 社會住宅 lets, renting {abs(rb['gap_pct']):.1f}% below market per 坪. "
         "Anyone computing a yield off raw 實價登錄 rents is mostly measuring the subsidy.",
@@ -958,6 +972,62 @@ def build(D):
     A(P(f"Applied to walk-ups alone ({p2(un['coverage_pct'])} matchable), the interval is "
         f"[{un['support'][0]:.2f}%, {un['support'][1]:.2f}%], {un['width']:.2f}pp wide. That is wide "
         "enough to swallow the entire walk-up/tower gap of §9."))
+
+    A(P("Is the resemblance assumption true?", "h2"))
+    A(P("Every rung above the support rung rests on one idea: that an unmatched building resembles "
+        "the <i>matched</i> buildings of its own cell. Editions up to v1.1 stated that, laddered it "
+        "and labelled it honestly — and never tested it, which made it the only load-bearing claim in "
+        "this report that was asserted rather than measured. It is testable, on the two things the "
+        "cells do not condition on: how old a building is, and how big it is. If the cells do what "
+        "the rung claims, the gap between matched and unmatched buildings should close inside them."))
+    A(P("Reported as a standardised difference — the mean gap over the pooled standard deviation — "
+        f"which is scale-free, with |d| &lt; {rz_meta['balanced_at']} the conventional threshold for "
+        f"balanced. Cells need {rz_meta['min_cell']} matched buildings to count, so a handful of "
+        "buildings cannot outvote a decile of them.", "note"))
+    bz, az = rz["built"], rz["area"]
+    A(tbl([["", "age (built year)", "area (坪)"],
+           ["Unconditional d, whole universe", f"{bz['unconditional_d']:+.3f}",
+            f"{az['unconditional_d']:+.3f}"],
+           ["Within-cell |d|, size-weighted", f"{bz['within_cell_abs_d']:.3f}",
+            f"{az['within_cell_abs_d']:.3f}"],
+           ["Within-cell signed d", f"{bz['within_cell_signed_d']:+.3f}",
+            f"{az['within_cell_signed_d']:+.3f}"],
+           ["Absorbed by the cells", f"{bz['absorbed_pct']:.1f}%", f"{az['absorbed_pct']:.1f}%"],
+           ["Cells not balanced", f"{bz['cells_unbalanced']} of {bz['cells']}",
+            f"{az['cells_unbalanced']} of {az['cells']}"]],
+          [62 * mm, 30 * mm, 30 * mm], right=(1, 2), size=7.8))
+    A(Spacer(1, 6))
+    A(P(f"<b>Age: mostly absorbed.</b> Across the whole universe matched buildings are "
+        f"{bz['unconditional_d']:+.2f} standard deviations newer. Inside the cells that falls to "
+        f"{bz['within_cell_abs_d']:.3f}, so the conditioning removes {bz['absorbed_pct']:.0f}% of it. "
+        f"What survives is small but it is not noise: the signed mean is {bz['within_cell_signed_d']:+.3f}, "
+        f"the same direction as the raw gap, and {bz['cells_unbalanced']} of {bz['cells']} cells are "
+        "still outside the balanced band. Matched buildings are newer than their own cell-mates."))
+    A(P(f"<b>Area: made worse, not better.</b> Unconditionally matched buildings are "
+        f"{abs(az['unconditional_d']):.2f} standard deviations smaller. Inside the cells that does not "
+        f"shrink — it grows to {az['within_cell_abs_d']:.3f}, {abs(az['absorbed_pct']):.0f}% in the "
+        f"wrong direction, with {az['cells_unbalanced']} of {az['cells']} cells unbalanced and every "
+        "one of the worst six carrying the same sign. The mechanism is not mysterious: the cells are "
+        "cut on price per 坪, and 坪 is the denominator of that. Banding on a ratio strips out the "
+        "price channel that was partly offsetting the size channel, so within a band the size gap "
+        "expresses itself more freely than it did across the whole universe."))
+    A(P(f"Worst cells by |d| on area: " + ", ".join(
+        f"{w['type']} decile {w['decile']} ({w['d']:+.2f})" for w in az["worst"][:4]) + ".", "note"))
+    A(callout(
+        "So the headline interval is a <b>stated-assumption</b> interval, not a validated one, and on "
+        "one measurable dimension the assumption is not merely unverified but contradicted. Nothing "
+        "about the arithmetic changes — the bound is still sharp for the assumption named on its rung "
+        "— but a reader should treat the narrowing from the quality band as resting on a condition "
+        "the data only half supports.<br/><br/>"
+        "It cannot be repaired by conditioning on size as well. The age rung already shows what "
+        f"happens: adding a third dimension puts {rungs['type_price_age']['cells_below_min']} of "
+        f"{rungs['type_price_age']['cells']} cells below the minimum and sends "
+        f"{n0(rungs['type_price_age']['fellback_universe_n'])} buildings back to the weaker "
+        f"assumption, which is why it <i>widens</i> the interval by "
+        f"{abs(rungs['type_price_age']['buys_pp']):.2f}pp. At {p2(h['coverage_pct'])} coverage the "
+        "data runs out before the conditioning does. That is the same wall as the rest of §6, met "
+        "from a different direction.",
+        "What this does to the interval"))
 
     # ------------------------------------------------------------ 7 ladder
     A(CondPageBreak(95 * mm))

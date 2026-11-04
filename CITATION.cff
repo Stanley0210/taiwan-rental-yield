@@ -19,8 +19,10 @@ authors:
 #   deposit 1.1  paper v1.0, plus the Traditional Chinese edition
 #   deposit 1.2  paper v1.1: references, the comparison against published
 #                estimates, a rewritten section 18, payload v2.9
-version: "1.2"
-date-released: "2026-11-03"
+#   deposit 1.3  paper v1.2: the resemblance assumption the headline interval
+#                rests on is tested, and half fails; payload v2.10
+version: "1.3"
+date-released: "2026-11-04"
 license: CC-BY-4.0
 # Concept DOI: always resolves to the newest version. Each release also
 # has its own version DOI (v1.0 is 10.5281/zenodo.23902647).
