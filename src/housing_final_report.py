@@ -455,7 +455,6 @@ def build(D):
 
     # ------------------------------------------------------------ cover
     A(Spacer(1, 38 * mm))
-    A(P("Quants.tw — Housing Pivot", "part"))
     A(P("What 9,843 Taiwanese buildings say about rental yield, and about how little "
         "of the market any yield can describe", "title"))
     A(Spacer(1, 4))
@@ -478,7 +477,10 @@ def build(D):
            ["Data window", f"{meta['seasons'][0]} → {meta['seasons'][1]}  ({meta['n_seasons']} quarters, "
                            "Q4 2023 → Q2 2026)"],
            ["Source snapshot SHA-256", prov["source"]["sha256"][:32] + "…"],
-           ["Code", "branch feat/housing · tag housing-parked-2026-09-29 (3fa7b05)"],
+           # The parked branch is where this was written; the public repository is
+           # where it lives now. A reader who wants the code needs the second one.
+           ["Code", "github.com/Stanley0210/taiwan-rental-yield  ·  first written on "
+                    "branch feat/housing (tag housing-parked-2026-09-29)"],
            ["First written", "2026-09-29"]],
           [45 * mm, FRAME_W - 45 * mm], size=7.8))
     A(Spacer(1, 6))

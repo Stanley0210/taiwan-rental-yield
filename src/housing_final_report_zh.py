@@ -194,7 +194,6 @@ def build(D):
 
     # ------------------------------------------------------------ 封面
     A(Spacer(1, 38 * mm))
-    A(P("Quants.tw — 住宅轉向", "part"))
     A(P("9,843 棟台灣建物告訴我們的租金報酬率，"
         "以及任何一個報酬率究竟能描述這個市場的多小一塊", "title"))
     A(Spacer(1, 4))
@@ -212,7 +211,8 @@ def build(D):
            ["資料期間", f"{meta['seasons'][0]} → {meta['seasons'][1]}（共 {meta['n_seasons']} 季，"
                         "民國112年第4季 → 115年第2季）"],
            ["來源快照 SHA-256", prov["source"]["sha256"][:32] + "…"],
-           ["程式碼", "分支 feat/housing · 標籤 housing-parked-2026-09-29（3fa7b05）"],
+           ["程式碼", "github.com/Stanley0210/taiwan-rental-yield  ·  最初寫在"
+                     "分支 feat/housing（標籤 housing-parked-2026-09-29）"],
            ["初稿日期", "2026-09-29"]],
           [45 * mm, FRAME_W - 45 * mm], size=7.8))
     A(Spacer(1, 6))
