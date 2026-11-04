@@ -477,10 +477,10 @@ def build(D):
            ["Data window", f"{meta['seasons'][0]} → {meta['seasons'][1]}  ({meta['n_seasons']} quarters, "
                            "Q4 2023 → Q2 2026)"],
            ["Source snapshot SHA-256", prov["source"]["sha256"][:32] + "…"],
-           # The parked branch is where this was written; the public repository is
-           # where it lives now. A reader who wants the code needs the second one.
-           ["Code", "github.com/Stanley0210/taiwan-rental-yield  ·  first written on "
-                    "branch feat/housing (tag housing-parked-2026-09-29)"],
+           # A reader who wants the code needs the public repository, not the
+           # parked branch this was written on -- section 18's restart table
+           # still names that branch and its tag, which is where it belongs.
+           ["Code", "github.com/Stanley0210/taiwan-rental-yield"],
            ["First written", "2026-09-29"]],
           [45 * mm, FRAME_W - 45 * mm], size=7.8))
     A(Spacer(1, 6))

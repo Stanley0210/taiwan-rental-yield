@@ -211,8 +211,7 @@ def build(D):
            ["資料期間", f"{meta['seasons'][0]} → {meta['seasons'][1]}（共 {meta['n_seasons']} 季，"
                         "民國112年第4季 → 115年第2季）"],
            ["來源快照 SHA-256", prov["source"]["sha256"][:32] + "…"],
-           ["程式碼", "github.com/Stanley0210/taiwan-rental-yield  ·  最初寫在"
-                     "分支 feat/housing（標籤 housing-parked-2026-09-29）"],
+           ["程式碼", "github.com/Stanley0210/taiwan-rental-yield"],
            ["初稿日期", "2026-09-29"]],
           [45 * mm, FRAME_W - 45 * mm], size=7.8))
     A(Spacer(1, 6))
