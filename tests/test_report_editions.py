@@ -22,6 +22,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src")
 EN = os.path.join(ROOT, "docs", "HOUSING_FINAL_REPORT.pdf")
 ZH = os.path.join(ROOT, "docs", "HOUSING_FINAL_REPORT_ZH.pdf")
+# The two-page briefs are a third and fourth place a figure can go stale, which
+# is exactly why they are generated from the payload rather than written. Same
+# rule: prose may differ freely between the four, numbers may not.
+BRIEF_EN = os.path.join(ROOT, "docs", "HOUSING_BRIEF.pdf")
+BRIEF_ZH = os.path.join(ROOT, "docs", "HOUSING_BRIEF_ZH.pdf")
 DATA = os.path.join(ROOT, "housing_data.json")
 
 pytest.importorskip("pypdf")
@@ -130,3 +135,49 @@ def test_both_editions_rebuild_from_the_committed_payload():
                                capture_output=True, text=True, env=env, cwd=ROOT)
             assert r.returncode == 0, f"{mod} failed:\n{r.stderr[-2000:]}"
             assert os.path.getsize(out) > 100_000, f"{mod} produced a suspiciously small PDF"
+
+
+# ── the briefs ──────────────────────────────────────────────────────────────
+# A brief exists to be sent to someone who has not read the paper, so a figure
+# that disagrees with the paper is worse here than anywhere else: it is the
+# only number that reader will ever see.
+
+@pytest.mark.parametrize("brief", [BRIEF_EN, BRIEF_ZH])
+def test_each_brief_fits_on_two_pages(brief):
+    """It is a two-page brief. Three pages with one box on the last is not one."""
+    if not os.path.exists(brief):
+        pytest.skip(f"{os.path.basename(brief)} not built")
+    assert len(PdfReader(brief).pages) == 2
+
+
+@pytest.mark.parametrize("brief", [BRIEF_EN, BRIEF_ZH])
+def test_the_brief_agrees_with_the_paper_on_the_headline(brief):
+    D = _payload()
+    text = _text(brief)
+    h = D["headline"]
+    for name, want in (("gross yield", f"{h['yield']:.2f}"),
+                       ("net yield", f"{h['net']:.2f}"),
+                       ("coverage", f"{h['coverage_pct']:.2f}"),
+                       ("coverage ceiling", f"{h['coverage_ceiling_pct']:.2f}"),
+                       ("matched buildings", f"{h['buildings']:,}"),
+                       ("universe buildings", f"{h['universe_buildings']:,}"),
+                       ("pairs", f"{h['pairs']:,}")):
+        assert want in text, f"{os.path.basename(brief)}: {name} ({want}) absent"
+
+
+@pytest.mark.parametrize("brief", [BRIEF_EN, BRIEF_ZH])
+def test_the_brief_states_the_bounds_and_the_failed_test(brief):
+    """The brief may not quote the narrowed interval without the caveat the
+    paper attaches to it -- that is the one shortening a summary must not make."""
+    D = _payload()
+    rung = {r["key"]: r for r in D["partial_id"]["rungs"]}["type_price"]["gross"]
+    text = _text(brief)
+    assert f"{rung['lo']:.2f}" in text and f"{rung['hi']:.2f}" in text
+    rz = (D.get("resemblance") or {}).get("vars")
+    if rz:
+        assert f"{rz['built']['absorbed_pct']:.0f}" in text, "the brief hides the balance result"
+
+
+@pytest.mark.parametrize("brief", [BRIEF_EN, BRIEF_ZH])
+def test_the_brief_carries_the_doi(brief):
+    assert "10.5281/zenodo.23902646" in _text(brief)

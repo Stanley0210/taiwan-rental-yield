@@ -3,8 +3,10 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23902646.svg)](https://doi.org/10.5281/zenodo.23902646)
 
 **Live page:** https://stanley0210.github.io/taiwan-rental-yield/
-**Paper (PDF, v1.1):** [English](docs/HOUSING_FINAL_REPORT.pdf) ·
+**Paper (PDF, v1.2):** [English](docs/HOUSING_FINAL_REPORT.pdf) ·
 [中文版](docs/HOUSING_FINAL_REPORT_ZH.pdf) ·
+**Two-page brief:** [English](docs/HOUSING_BRIEF.pdf) ·
+[中文版](docs/HOUSING_BRIEF_ZH.pdf) ·
 **Technical report:** [`housing_report.pdf`](housing_report.pdf) ·
 **Open question:** [`docs/SOCIAL_HOUSING_NOTE.md`](docs/SOCIAL_HOUSING_NOTE.md)
 
@@ -117,12 +119,16 @@ pip install -r requirements.txt          # pandas, numpy, reportlab, fonttools
 python src/underwrite.py                 # rebuilds housing_data.json
 python src/housing_final_report.py       # rebuilds the paper      -> docs/
 python src/housing_final_report_zh.py    # rebuilds the 中文版     -> docs/
-pytest tests/ -q                         # 287 tests
+python src/housing_brief.py              # the two-page brief      -> docs/
+python src/housing_brief_zh.py           # the 中文版 brief        -> docs/
+pytest tests/ -q                         # 297 tests
 ```
 
-The two editions of the paper read the same `housing_data.json`, so they cannot
-disagree about a number by accident; `tests/test_report_editions.py` asserts
-that every headline figure appears in both. They are separate generators rather
+All four documents read the same `housing_data.json`, so they cannot disagree
+about a number by accident; `tests/test_report_editions.py` asserts that every
+headline figure appears in each, that the briefs fit on two pages, and that a
+brief may not quote the narrowed interval without the caveat the paper attaches
+to it — which is the one shortening a summary must not make. They are separate generators rather
 than one bilingual template on purpose — a shared positional template is how
 the site's own JavaScript printed a count as a percentage four times, with the
 placeholder count matching and only the order wrong.

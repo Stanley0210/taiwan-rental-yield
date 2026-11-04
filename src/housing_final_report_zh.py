@@ -46,7 +46,7 @@ from references import (EXTERNAL_READ_ON, GPG_CITIES, GPG_NATIONAL, GPG_UPDATED,
 # this date and PAPER_DATE now agree; in v1.0 they did not, and the cover row
 # below exists so that an edition written later can never inherit an earlier
 # edition's date.
-ZH_EDITION_DATE = "2026-11-03"
+ZH_EDITION_DATE = "2026-11-04"
 
 # PAPER_CHANGES, for the register in section 16. Kept beside the English list
 # rather than translated at render time, for the same reason the two reports
