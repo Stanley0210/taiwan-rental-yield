@@ -12,8 +12,7 @@ type: software
 authors:
   - given-names: Stanley
     family-names: Jen
-    # Add your ORCID iD here once you have it, e.g.
-    # orcid: "https://orcid.org/0000-0000-0000-0000"
+    orcid: "https://orcid.org/0009-0003-3396-106X"
 # The DEPOSIT version, which is not the paper's -- they move independently
 # and the paper's cover prints its own.
 #   deposit 1.0  paper v1.0, English only

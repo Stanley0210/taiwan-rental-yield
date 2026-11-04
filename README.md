@@ -139,6 +139,10 @@ Zenodo. https://doi.org/10.5281/zenodo.23902646
 newest version. To cite one specific release instead, use that release's own
 DOI from its Zenodo page — v1.0 is `10.5281/zenodo.23902647`.
 
+Author ORCID: [`0009-0003-3396-106X`](https://orcid.org/0009-0003-3396-106X).
+`CITATION.cff` carries it in machine-readable form, so citation tooling can
+resolve the author as well as the work.
+
 Note that the deposit version and the paper version are different things, and
 they move independently:
 
