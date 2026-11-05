@@ -1,0 +1,90 @@
+# What this is for.
+#
+# This repository's promise is "check my denominator": the payload ships with
+# its SHA-256, the pipeline rebuilds it, and the tests pin what the documents
+# may say. None of that was verified anywhere except on one laptop. The pins in
+# requirements.txt were added after an unpinned, non-stable sort produced a
+# payload that would not reproduce (docs/REPRODUCING.md, payload 2.9) -- and
+# those pins were themselves never tested against a clean install.
+#
+# So this workflow installs from the pinned requirements on a machine that has
+# never seen this project, verifies the published payload hash, runs the suite,
+# and rebuilds all four documents. If any of that stops working, the promise
+# has stopped being true and this says so.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # The version the published payload was built with. Named, not
+          # floating, for the same reason the libraries are.
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install from the pinned requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip list
+
+      - name: The published payload still matches its own hash
+        run: bin/rebuild-housing.sh --verify
+
+      - name: Tests
+        run: pytest tests/ -q
+
+      # The suite reads the committed PDFs; it does not prove the generators
+      # still RUN. They import reportlab and fontTools and derive the static
+      # font instances from the committed variable font, all of which can break
+      # on a clean install without any test noticing.
+      - name: All four documents rebuild from a clean install
+        run: |
+          mkdir -p "$RUNNER_TEMP/docs"
+          REPORT_OUT="$RUNNER_TEMP/docs/report_en.pdf"     python src/housing_final_report.py
+          REPORT_OUT_ZH="$RUNNER_TEMP/docs/report_zh.pdf"  python src/housing_final_report_zh.py
+          BRIEF_OUT="$RUNNER_TEMP/docs/brief_en.pdf"       python src/housing_brief.py
+          BRIEF_OUT_ZH="$RUNNER_TEMP/docs/brief_zh.pdf"    python src/housing_brief_zh.py
+          ls -l "$RUNNER_TEMP/docs"
+
+      # A freshly built document must say the same things as the committed one.
+      # Byte comparison is not available -- reportlab stamps a creation date --
+      # so this compares the text, which is what the claims live in.
+      - name: A fresh build says the same as the committed one
+        run: |
+          python - <<'PY'
+          import os, sys
+          from pypdf import PdfReader
+          tmp = os.environ["RUNNER_TEMP"] + "/docs"
+          pairs = [("docs/HOUSING_FINAL_REPORT.pdf",    tmp + "/report_en.pdf"),
+                   ("docs/HOUSING_FINAL_REPORT_ZH.pdf", tmp + "/report_zh.pdf"),
+                   ("docs/HOUSING_BRIEF.pdf",           tmp + "/brief_en.pdf"),
+                   ("docs/HOUSING_BRIEF_ZH.pdf",        tmp + "/brief_zh.pdf")]
+          def text(p):
+              return "\n".join((pg.extract_text() or "") for pg in PdfReader(p).pages)
+          bad = []
+          for committed, fresh in pairs:
+              a, b = text(committed), text(fresh)
+              if a != b:
+                  bad.append(f"{committed}: committed {len(a)} chars, fresh {len(b)}")
+          if bad:
+              print("committed documents are stale -- rebuild and commit them:")
+              print("\n".join("  " + x for x in bad))
+              sys.exit(1)
+          print("all four committed documents match a fresh build")
+          PY

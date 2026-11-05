@@ -1,0 +1,13 @@
+# Everything in requirements.txt, plus what is needed to CHECK the work.
+#
+# pytest lived nowhere until now, which meant the verification command the
+# README leads with -- `pytest tests/ -q` -- could not be run from a clean
+# install of the published requirements. The instruction was real and the
+# dependency was implicit, which is the same failure as a number with no
+# source.
+#
+# Pinned for the same reason the runtime dependencies are: an unpinned
+# dependency is how a non-stable sort turned into a failed reproduction (see
+# docs/REPRODUCING.md, payload 2.9).
+-r requirements.txt
+pytest==9.0.3

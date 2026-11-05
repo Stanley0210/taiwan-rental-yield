@@ -50,7 +50,7 @@ OUT = os.environ.get("LVR_OUT", "housing_data.json")
 # can tell whether they are looking at different code or different data --
 # 實價登錄 grows every quarter, and without this a rebuild that disagrees is
 # indistinguishable from a bug.
-PAYLOAD_VERSION = "2.10"
+PAYLOAD_VERSION = "2.11"
 
 MATCH_WINDOW_Q = 4          # +/- quarters a sale and a lease may be apart
 
@@ -2784,8 +2784,30 @@ def dead_hypothesis_block(b):
 # the net yield can be read against something. It is not modelled and not a
 # slider: it is quoted, with its source and its month, and it goes stale — check
 # https://www.cbc.gov.tw/tw/lp-528-1.html before trusting the date below.
+# ── A TRANSCRIBED FIGURE, AND WHY IT HAS TO BE ONE ──────────────────────────
+# Its two siblings are derived: the 1-year deposit rate comes out of
+# data/ref/cbc/A13Rate.csv and the rediscount rate out of webF1.csv, both
+# hashed into the provenance block. This one cannot be, and section 18 listed
+# that as an open item without saying why.
+#
+# The why: the CBC publishes 五大銀行新承做放款金額與利率 as a per-release PDF
+# attachment with a per-release URL, and offers no open-data CSV for it.
+# A13Rate.csv looks like a candidate and is not -- it carries 指數房貸, the
+# POSTED index-mortgage rate, which is a different series, and it ends before
+# this period. 內政部's mortgage_rate_new.csv is also a different series
+# (quarterly, all lenders, by county) and the payload already reads it
+# separately as moi.mortgage.
+#
+# So it declares itself instead of pretending. "typed": True travels into the
+# payload, both editions print the word beside the figure, and
+# tests/test_sources.py fails if any figure marked typed loses its source or
+# its period. That is the same treatment section 4 gives the Global Property
+# Guide comparison: a transcription a reader can go and check, rather than a
+# number that looks derived and is not.
 MORTGAGE_RATE = {
     "rate": 2.322,
+    "typed": True,
+    "source_format": "per-release PDF; the CBC publishes no open-data CSV for this series",
     "period_zh": "115年5月",
     "period_en": "May 2026",
     "src_zh": "中央銀行「五大銀行新承做購屋貸款」加權平均利率",

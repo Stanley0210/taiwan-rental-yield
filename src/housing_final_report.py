@@ -740,7 +740,9 @@ def build(D):
            ["Rediscount rate", p2(bm["rediscount"]["rate"]), bm["rediscount"]["period_en"],
             "policy rate, not investable"],
            ["New mortgage (CBC)", f"{bm['mortgage']['rate']:.3f}%", bm["mortgage"]["period_en"],
-            "five big banks, new house-purchase loans"],
+            "five big banks, new house-purchase loans — "
+            + ("transcribed, not derived: the CBC publishes no CSV for this series"
+               if bm["mortgage"].get("typed") else "read from a pinned source file")],
            ["New mortgage (MOI)", p2(moi["mortgage"]["rate"]), moi["mortgage"]["period"],
             "all new loans nationally"]],
           [38 * mm, 18 * mm, 30 * mm, FRAME_W - 86 * mm], right=(1,)))
@@ -1483,6 +1485,17 @@ def build(D):
         "the waterfall, so the two can no longer disagree.",
         "<b>The net yield and the reweighted median now carry intervals.</b> Both were published as "
         "bare point estimates beside a gross figure that had a CI.",
+        "<b>Dependencies are pinned and a clean install is tested.</b> v1.2 pinned "
+        "<i>requirements.txt</i> and then printed \"dependencies are unpinned\" in this very list, "
+        "which is the staleness this section exists to catch, committed inside the section itself. "
+        "<i>requirements-dev.txt</i> now also carries pytest, which lived nowhere despite being the "
+        "command the README leads with, and CI installs from those pins on a machine that has never "
+        "seen the project, verifies the payload hash, runs the suite and rebuilds all four documents.",
+        "<b>The mortgage rate says what it is.</b> It is still transcribed, because the CBC publishes "
+        "五大銀行新承做放款金額與利率 as a per-release PDF and offers no open-data CSV: "
+        "<i>A13Rate.csv</i> carries the posted 指數房貸 rate, a different series, and 內政部's file is "
+        "quarterly and covers all lenders. So it now declares itself typed, and both editions print "
+        "that beside the figure rather than letting it pass for derived.",
     ])))
     A(P("Found while preparing this edition", "h2"))
     A(callout(
@@ -1506,10 +1519,12 @@ def build(D):
         "<b>quants.tw itself is still unbound on Railway</b>, so the interactive version of this work "
         "— the sliders, the per-district pages — runs nowhere. The static page carries the findings; "
         "it does not carry the tool. The runbook is <i>docs/RAILWAY_GO_LIVE.md</i> on the housing branch.",
-        "<b>Dependencies are unpinned.</b> <i>requirements.txt</i> names six libraries and no "
-        "versions, which is how a non-stable sort turned into a failed reproduction. Pinning them "
-        "would make <i>bin/rebuild-housing.sh</i> a stronger promise than it is today.",
-        "<b>The mortgage rate is a typed constant</b> with no pinned source file, unlike its two siblings.",
+        f"<b>The mortgage figure is behind its source.</b> It reads "
+        f"{bm['mortgage']['period_en']}, and the CBC has since published through 115.9 "
+        "(September 2026). A transcribed number cannot refresh itself, which is the standing cost of "
+        "a series with no machine-readable source; it should be re-read whenever this paper is "
+        "revised. It is used only as a reference rate beside the net yield, never inside a "
+        "calculation.",
         "<b>Per-building URLs</b> (/housing/b/&lt;key&gt;) were never built, because there was no live "
         "site to link to.",
         "<b>The rental-vacancy level</b> remains an assumption; only its shape is measured (§14).",

@@ -1,6 +1,7 @@
 # 實價收益 — the visible range of Taiwan's rental yield
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23902646.svg)](https://doi.org/10.5281/zenodo.23902646)
+[![CI](https://github.com/Stanley0210/taiwan-rental-yield/actions/workflows/ci.yml/badge.svg)](https://github.com/Stanley0210/taiwan-rental-yield/actions/workflows/ci.yml)
 
 **Live page:** https://stanley0210.github.io/taiwan-rental-yield/
 **Paper (PDF, v1.2):** [English](docs/HOUSING_FINAL_REPORT.pdf) ·
@@ -115,13 +116,13 @@ payload version, each stating what moved and why, including the corrections.
 ## Rebuilding it
 
 ```bash
-pip install -r requirements.txt          # pandas, numpy, reportlab, fonttools
+pip install -r requirements-dev.txt      # the pinned runtime deps, plus pytest
 python src/underwrite.py                 # rebuilds housing_data.json
 python src/housing_final_report.py       # rebuilds the paper      -> docs/
 python src/housing_final_report_zh.py    # rebuilds the 中文版     -> docs/
 python src/housing_brief.py              # the two-page brief      -> docs/
 python src/housing_brief_zh.py           # the 中文版 brief        -> docs/
-pytest tests/ -q                         # 297 tests
+pytest tests/ -q                         # 303 tests
 ```
 
 All four documents read the same `housing_data.json`, so they cannot disagree
@@ -138,6 +139,12 @@ placeholder count matching and only the order wrong.
 cleans the registry, `normalize_addr.py` is the join key that decides when two
 records are the same building, and `fetch_moi.py` / `fetch_cbc.py` pull the
 official reference series pinned under `data/ref/`.
+
+Every version is pinned, and CI installs from those pins on a machine that has
+never seen the project, verifies the published payload hash, runs the suite and
+rebuilds all four documents — then checks a fresh build says the same as the
+committed one. Unpinned dependencies are how a non-stable sort once produced a
+payload that would not reproduce; pins nobody tests are not much better.
 
 The season archives themselves are ~200 MB and are not committed;
 `docs/REPRODUCING.md` says where to get them and how to tell a data difference
