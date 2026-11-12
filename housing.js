@@ -640,6 +640,19 @@
     pidR_type_price_age: ['…再加同一個屋齡區間（反而變寬）', '...plus their own age band (which makes it WIDER)'],
     // The resemblance test. Deliberately S(), never Sf(): the numbers are read
     // off the payload below, so no positional template can reorder them.
+    // The unit-size audit. S() only, single-line literals only: no positional
+    // template to misorder, and no adjacent literals (that is Python, not JS).
+    szH:        ['同一棟，不是同一戶：面積不對等值多少', 'Same building, not the same unit: what a size mismatch is worth'],
+    szLede:     ['這裡的一組配對，是同一棟樓裡的一筆買賣與一筆租約，並不是同一戶，而主數字是拿總租金去除以總價。沒有任何東西保證這兩戶一樣大：拿一間出租套房去配一戶出售的三房，報酬率就會偏低，反過來則偏高。同一個中位數，另外用兩種方式重算：', 'A pair here is a sale and a lease in the same building, not the same unit, and the headline divides total rent by total price. Nothing makes the two units the same size, so a leased studio set against a sold three-bedroom reads as a low yield and the reverse as a high one. The same median, recomputed two other ways:'],
+    szColR:     ['讀法', 'Reading'],
+    szColY:     ['毛報酬率中位數', 'median gross'],
+    szColCI:    ['95% 信賴區間', '95% CI'],
+    szColB:     ['棟數', 'buildings'],
+    szColP:     ['配對數', 'pairs'],
+    szRowH:     ['主數字：總租金 ÷ 總價', 'Headline: total rent ÷ total price'],
+    szRowP:     ['每坪：每坪租金 ÷ 每坪單價', 'Per ping: rent per ping ÷ price per ping'],
+    szRowM:     ['面積相近：只取兩戶面積相近的配對', 'Size-matched: only pairs whose two units are close in size'],
+    szNote:     ['在全國層次，三種讀法幾乎沒有差別，因為「出售戶較大」與「出租戶較大」的配對大致一樣多，在中位數裡互相抵消。到了個別城市就不一定：面積不對等並不對稱的地方，三種讀法會分開，所以報告裡逐城市的對照把三種都列出來。', 'Nationally the three readings barely differ, because pairs where the sold unit is larger and pairs where the leased unit is larger are about equally common and cancel in a median. City by city that is not guaranteed: where the mismatch is lopsided the readings separate, which is why the paper gives every city comparison all three ways.'],
     resH:       ['相似性假設是真的嗎？', 'Is the resemblance assumption true?'],
     resLede:    ['支撐階以上的每一階，都假設配不到租約的建物，長得像它所屬格子裡可配對的那些。到目前為止，這件事一直被寫出來、卻從來沒有被檢驗過——它是本站唯一一個被主張、而不是被量測的承重論點。它是可以檢驗的，就檢驗在格子沒有條件化的那兩件事上：建物多老，以及建物多大。如果格子真的有用，可配對與配不到之間的落差，應該在格子內部收斂。',
                  'Every rung above the support rung assumes an unmatched building resembles the matched buildings of its own cell. Until now that was stated and never tested, which made it the only load-bearing claim on this site that was asserted rather than measured. It is testable, on the two things the cells do not condition on: how old a building is and how big it is. If the cells work, the gap between matched and unmatched buildings should close inside them.'],
@@ -4187,7 +4200,7 @@
       '<div class="hs-card"><div class="hs-ladder">' + rows + '</div></div>' +
       '<p class="hs-fig-n hs-prose">' + esc(Sf('ladNote', D.concentration.top10_share,
           h.pair_level_yield.toFixed(2), h.yield.toFixed(2))) + '</p>' +
-      ladMarginals() + parkingAudit());
+      ladMarginals() + parkingAudit() + sizeAudit());
   }
 
   // What each filter is worth on its own: the average marginal effect over all
@@ -4271,6 +4284,31 @@
       '<div class="hs-card hs-scroll">' + svg(W, H, bars, '', Sf('biasH', D.rent_bias.social_share_pct.toFixed(1))) + '</div>');
   }
 
+
+  // The unit-size objection, beside the parking audit: a pair is the same
+  // building, not the same unit, and the paper measures what that is worth.
+  // Every number is read straight off the payload -- no Sf() anywhere here.
+  function sizeAudit() {
+    var z = D.size_robust;
+    if (!z || !z.headline || !z.per_ping || !z.size_matched) return '';
+    var bo = (D.bootstrap && D.bootstrap.overall) || {};
+    var ci = function (lo, hi) { return (lo == null || hi == null) ? '--' : lo.toFixed(2) + '–' + hi.toFixed(2); };
+    var row = function (key, y, lo, hi, b, p) {
+      return '<tr><td>' + esc(S(key)) + '</td><td class="num">' + y.toFixed(2) + '%</td><td class="num">' +
+        ci(lo, hi) + '</td><td class="num">' + n0(b) + '</td><td class="num">' + n0(p) + '</td></tr>';
+    };
+    return '<div style="margin-top:var(--sp6)"><h3>' + esc(S('szH')) + '</h3>' +
+      '<p class="hs-prose">' + esc(S('szLede')) + '</p>' +
+      '<div class="hs-scroll"><table style="font-size:13.5px" aria-label="' + esc(S('szH')) + '"><thead><tr>' +
+        '<th>' + esc(S('szColR')) + '</th><th class="num">' + esc(S('szColY')) + '</th><th class="num">' +
+        esc(S('szColCI')) + '</th><th class="num">' + esc(S('szColB')) + '</th><th class="num">' +
+        esc(S('szColP')) + '</th></tr></thead><tbody>' +
+        row('szRowH', z.headline.gross, bo.lo, bo.hi, z.headline.buildings, z.headline.pairs) +
+        row('szRowP', z.per_ping.gross, z.per_ping.lo, z.per_ping.hi, z.per_ping.buildings, z.per_ping.pairs) +
+        row('szRowM', z.size_matched.gross, z.size_matched.lo, z.size_matched.hi, z.size_matched.buildings, z.size_matched.pairs) +
+      '</tbody></table></div>' +
+      '<div class="hs-callout"><p>' + esc(S('szNote')) + '</p></div></div>';
+  }
 
   // A stated assumption in the cleaning, tested within building, at the foot
   // of the honesty ladder where the cleaning decisions live. Not a rung of

@@ -38,7 +38,7 @@ from housing_final_report import (ACCENT, ACCENT2, ACCENT3, FRAME_W, INK, MUTED,
                                   tiles, _s, PAPER_VERSION, PAPER_DATE,
                                   PAPER_CHANGES)
 from references import (EXTERNAL_READ_ON, GPG_CITIES, GPG_NATIONAL, GPG_UPDATED,
-                        GROUP_ORDER, cite, cite_t, entries, uncited, why)
+                        GROUP_ORDER, byline, cite, cite_t, entries, uncited, why)
 
 # The paper version is the EN module's: both editions render the same claims,
 # so there is one paper version and two languages, never a Chinese v1.0 beside
@@ -46,12 +46,20 @@ from references import (EXTERNAL_READ_ON, GPG_CITIES, GPG_NATIONAL, GPG_UPDATED,
 # this date and PAPER_DATE now agree; in v1.0 they did not, and the cover row
 # below exists so that an edition written later can never inherit an earlier
 # edition's date.
-ZH_EDITION_DATE = "2026-11-04"
+ZH_EDITION_DATE = "2026-11-11"
 
 # PAPER_CHANGES, for the register in section 16. Kept beside the English list
 # rather than translated at render time, for the same reason the two reports
 # are separate generators: prose belongs to its edition.
 PAPER_CHANGES_ZH = [
+    ("v1.3", "2026-11-11",
+     "在把文章寄給任何人之前先對它做壓力測試，找到三件事。"
+     "一組配對是同一「棟」樓裡的一筆買賣與一筆租約，並不是同一「戶」，而先前沒有任何一版寫明這件事："
+     "第 4 節現在量出面積不對等值多少，分別以每坪計與只取面積相近的配對來算。"
+     "全國的主數字撐得住；逐城市的對照則不是原封不動地撐住——"
+     "與刊登數字的差距改以面積校正後的基礎重述，南部的差距因此變小。"
+     "關於「城市範圍」的保留說法，換成了實際的量測。"
+     "而實價登錄的租約申報規則，連續三版只有主張，現在引用了它所依據的兩條法律。"),
     ("v1.2", "2026-11-04",
      "檢驗了支撐區間那一階所依賴的「相似性假設」，並公布結果：它只有一半成立。"
      "格子吸收了可配對與配不到建物之間 77% 的屋齡落差，卻把面積落差變得更大。"
@@ -149,7 +157,8 @@ def on_page(canvas, doc):
     canvas.setFont(F, 7.2)
     canvas.setFillColor(MUTED)
     if doc.page > 1:
-        canvas.drawString(20 * mm, 12 * mm, "Quants.tw 住宅轉向 · 結案報告")
+        canvas.drawString(20 * mm, 12 * mm,
+                          f"實價收益 · 全臺灣租金報酬率的可見範圍 · 論文 {PAPER_VERSION}")
         canvas.drawRightString(A4[0] - 20 * mm, 12 * mm, f"{doc.page}")
         canvas.setStrokeColor(RULE)
         canvas.setLineWidth(0.4)
@@ -205,7 +214,9 @@ def build(D):
     A(P("9,843 棟台灣建物告訴我們的租金報酬率，"
         "以及任何一個報酬率究竟能描述這個市場的多小一塊", "title"))
     A(Spacer(1, 4))
-    A(P("實價登錄租金報酬率專案的結案報告（2026-08-30 → 2026-09-26），寫於專案封存當日", "sub"))
+    A(P(f"以實價登錄的買賣與租賃紀錄量測臺灣的租金報酬率，"
+        f"{meta['seasons'][0]}–{meta['seasons'][1]}。"
+        "初稿寫於 2026-09-29 專案封存當日；其後的修訂記錄在第 16 節。", "sub"))
     A(Spacer(1, 16 * mm))
     A(tiles([(p2(h["yield"]), "毛報酬率中位數<br/>（以棟為單位）"),
              (p2(h["net"]), "淨報酬率中位數<br/>（扣除四項明列成本後）"),
@@ -462,12 +473,49 @@ def build(D):
                if bm["mortgage"].get("typed") else "由釘住的來源檔讀出")],
            ["新承作房貸（內政部）", p2(moi["mortgage"]["rate"]), moi["mortgage"]["period"],
             "全國所有新承作貸款"]],
-          [38 * mm, 18 * mm, 30 * mm, FRAME_W - 86 * mm], right=(1,)))
+          [38 * mm, 18 * mm, 30 * mm, FRAME_W - 86 * mm], right=(1,), wrap=(3,)))
     A(P("在這段期間以房貸購屋的買方，付出的利息高於中位數可定價住宅所產生的淨租金收入。"
         "報酬率低於買下它的那筆錢的成本。這是一個算術陳述，不是對「價格錯了」的判決："
         f"依使用者成本（user cost）恆等式{cite('himmelberg2005')}，偏低的租金／價格比"
         "可以是對低實質利率與預期增值的合理反應，而本文量到的任何東西都無法判定是哪一種。",
         "note"))
+
+    zr = D["size_robust"]
+    zrat = zr["ratio"]
+    A(CondPageBreak(85 * mm))
+    A(P("同一棟，不是同一戶：面積不對等的質疑", "h2"))
+    A(P("這裡的一組配對，是同一<i>棟</i>樓裡的一筆買賣與一筆租約，並不是同一戶；"
+        "而主數字是拿總租金去除以總價。沒有任何東西保證這兩戶一樣大："
+        "拿一間出租套房去配一戶出售的三房，報酬率就會偏低，反過來則偏高。"
+        "v1.3 之前沒有任何一版寫明這件事，而這正是估價師會問的第一個問題。"
+        f"{cite_t('bracke2015')} 以配對「同一個物件」避開了這個問題。"
+        "實價登錄沒有戶別識別碼，所以「同一棟」已經是最接近的做法——"
+        "不過面積不對等到底值多少，是量得出來的，有三種讀法："))
+    A(tbl([["讀法", "毛報酬率中位數", "95% 信賴區間", "棟數", "配對數"],
+           ["主數字——總租金 ÷ 總價", p2(zr["headline"]["gross"]),
+            f"{boot['overall']['lo']:.2f}–{boot['overall']['hi']:.2f}",
+            n0(zr["headline"]["buildings"]), n0(zr["headline"]["pairs"])],
+           ["每坪——每坪租金 ÷ 每坪單價，逐組配對計算", p2(zr["per_ping"]["gross"]),
+            f"{zr['per_ping']['lo']:.2f}–{zr['per_ping']['hi']:.2f}",
+            n0(zr["per_ping"]["buildings"]), n0(zr["per_ping"]["pairs"])],
+           [f"面積相近——只取兩戶面積比在 {zr['band'][0]:g}–{zr['band'][1]:g} 倍之內的配對",
+            p2(zr["size_matched"]["gross"]),
+            f"{zr['size_matched']['lo']:.2f}–{zr['size_matched']['hi']:.2f}",
+            n0(zr["size_matched"]["buildings"]), n0(zr["size_matched"]["pairs"])]],
+          [78 * mm, 28 * mm, 26 * mm, 18 * mm, FRAME_W - 150 * mm], right=(1, 2, 3, 4),
+          wrap=(0,), size=7.4))
+    A(Spacer(1, 5))
+    A(P("<b>在全國層次，主數字站得住。</b>「面積相近」這個讀法，是這套登錄資料最接近「同一戶」設計的做法，"
+        "而且它對「租金如何隨面積變化」不做任何假設。"
+        f"它在 {zr['size_matched']['kept_buildings_pct']:.0f}% 的建物上得到 "
+        f"{zr['size_matched']['gross']:.2f}%，位移 {pp(zr['size_matched']['shift_pp'])}；"
+        f"每坪讀法則移動 {pp(zr['per_ping']['shift_pp'])}。原因是對稱，不是運氣："
+        f"在所有配對中，出售戶與出租戶的面積比中位數是 {zrat['pair']['median']:.2f}；"
+        f"有 {zrat['pairs_sold_bigger_pct']:.0f}% 的配對是出售戶大過容許範圍，"
+        f"{zrat['pairs_leased_bigger_pct']:.0f}% 是出租戶較大，兩種不對等在中位數裡互相抵消。"))
+    A(P("<b>到了地方層次，它就沒有那麼穩。</b>下面的對照正是這件事要緊的地方。"
+        "當一個城市的面積不對等並不對稱時，三種讀法就會分開，"
+        "所以下一張表的每一個城市數字都三種並列，每一個差距都以區間表示。", "note"))
 
     A(P("與其他已發表的估計相比", "h2"))
     A(P(f"臺灣其實已經有一個在流通的租金報酬率數字，值得問的是它從哪裡來。"
@@ -483,30 +531,57 @@ def build(D):
     A(P("逐一城市對照，這個比較過去沒有被做過："))
     gp = sorted([c for c in D["counties"] if c["city"] in GPG_CITIES],
                 key=lambda c: -c["buildings"])
-    crows = [["城市", "本報告", "95% 信賴區間", "棟數", f"GPG（{GPG_UPDATED}，刊登）", "差異"]]
+    zc = {r["city"]: r for r in zr["counties"]}
+
+    def gaps(city):
+        g, r = GPG_CITIES[city], zc[city]
+        return sorted([r["headline"] - g, r["per_ping"] - g, r["size_matched"] - g])
+
+    crows = [["城市", "主數字", "95% 信賴區間", "每坪", "面積相近", "棟數",
+              f"GPG（{GPG_UPDATED}）", "差距（三種讀法）"]]
     for c in gp:
-        g = GPG_CITIES[c["city"]]
-        ci = boot["county"].get(c["county"])
-        crows.append([c["city"], p2(c["yield"]),
+        r, ci = zc[c["city"]], boot["county"].get(c["county"])
+        lo_g, _mid, hi_g = gaps(c["city"])
+        crows.append([c["city"], p2(r["headline"]),
                       f"{ci['lo']:.2f}–{ci['hi']:.2f}" if ci else "—",
-                      n0(c["buildings"]), p2(g), pp(c["yield"] - g)])
-    A(tbl(crows, [24 * mm, 22 * mm, 26 * mm, 20 * mm, 38 * mm, FRAME_W - 130 * mm],
-          right=(1, 2, 3, 4, 5), size=7.6))
+                      p2(r["per_ping"]), p2(r["size_matched"]), n0(c["buildings"]),
+                      p2(GPG_CITIES[c["city"]]), f"{lo_g:+.2f} 至 {hi_g:+.2f}pp"])
+    A(tbl(crows, [17 * mm, 17 * mm, 24 * mm, 16 * mm, 20 * mm, 16 * mm, 30 * mm, FRAME_W - 140 * mm],
+          right=(1, 2, 3, 4, 5, 6, 7), size=7.2))
     A(Spacer(1, 5))
-    worst = max(gp, key=lambda c: c["yield"] - GPG_CITIES[c["city"]])
-    best = min(gp, key=lambda c: c["yield"] - GPG_CITIES[c["city"]])
-    A(P(f"五個城市全部都是登錄資料算出來的比較高，"
-        f"{best['city']}差 {pp(best['yield']-GPG_CITIES[best['city']])}，"
-        f"{worst['city']}差 {pp(worst['yield']-GPG_CITIES[worst['city']])}。"
-        "兩者在北部相當接近，往南則逐漸分開。這只是指示性的對照，並非嚴格的同類比較："
-        "刊登網站的數字涵蓋五個市轄範圍內的公寓，本文涵蓋全縣市的四層以上住宅建物——"
-        "對新北、高雄、臺南而言，那包含了大量非都市地區——而且兩者的期間也不同。"
-        "不過方向在每一個城市都一致，而且落差最大的地方，正是刊登平台涵蓋最薄的地方。"))
+    worst = max(gp, key=lambda c: gaps(c["city"])[0])
+    best = min(gp, key=lambda c: gaps(c["city"])[2])
+    wl, _wm, wh = gaps(worst["city"])
+    bl, _bm, bh = gaps(best["city"])
+    wrow, wg = zc[worst["city"]], GPG_CITIES[worst["city"]]
+    A(P(f"在三種讀法之下，五個城市全部都是登錄資料算出來的比較高："
+        f"{best['city']}差 {bl:+.2f} 至 {bh:+.2f} 個百分點，"
+        f"{worst['city']}差 {wl:+.2f} 至 {wh:+.2f} 個百分點。"
+        "兩個來源在北部相當接近，往南則逐漸分開，而這個排序不因讀法而改變。"
+        "<b>但南部差距的大小，會因讀法而改變。</b>"
+        f"v1.1 與 v1.2 只用主數字的讀法，把{worst['city']}寫成 {pp(wrow['headline'] - wg)}。"
+        "那是區間的上緣，不是中間：把面積控制住之後，差距是每坪 "
+        f"{pp(wrow['per_ping'] - wg)}、面積相近配對 {pp(wrow['size_matched'] - wg)}。"
+        "第 16 節記錄了這項更正。"))
+    fp = {(r["city"], r["part"]): r for r in zr["footprint"]}
+    tn_p, tn_c = fp[("臺南市", "city_proper")], fp[("臺南市", "former_county")]
+    kh_p, kh_c = fp[("高雄市", "city_proper")], fp[("高雄市", "former_county")]
+    A(P("先前幾版還保留地說，全市的中位數涵蓋了刊登網站不會涵蓋的「大量非都市地區」。"
+        "這件事是可以檢查的：臺南與高雄都在 2010 年與所屬的縣合併，而舊的市界至今仍是行政區的界線。"
+        f"在臺南，合併前的原市區報酬率為 {tn_p['headline']:.2f}%"
+        f"（每坪 {tn_p['per_ping']:.2f}%，{n0(tn_p['buildings'])} 棟），"
+        f"原臺南縣則是 {tn_c['headline']:.2f}%（{tn_c['per_ping']:.2f}%）："
+        "較大的範圍反而把全市的數字<i>拉低</i>，所以它是遮住了一部分差距，而不是製造差距。"
+        f"高雄則是反方向，而且幅度不大——原市區 {kh_p['headline']:.2f}%（{kh_p['per_ping']:.2f}%），"
+        f"原高雄縣 {kh_c['headline']:.2f}%（{kh_c['per_ping']:.2f}%）。"
+        "真正仍然不是同類比較的，是資料來源與期間：刊登價對上登錄價，"
+        "2026 年的單一時點對上十一季。"))
     A(P(f"臺北市是唯一有三個獨立估計的城市，而三者相符。{cite_t('yang2018')} 以 591 的刊登租金"
         "對上實價登錄的成交價，估出 2013–2016 年臺北的租金乘數約為 50，倒數過來約等於 2.0% ——"
         "這是把他們的數字做算術倒數，不是他們自己寫出來的報酬率。"
         f"Global Property Guide 的 2026 年數字是 {p2(GPG_CITIES['臺北市'])}。"
-        f"本報告是 {p2([c for c in gp if c['city']=='臺北市'][0]['yield'])}。"
+        f"本報告是 {p2(zc['臺北市']['headline'])}"
+        f"（每坪 {zc['臺北市']['per_ping']:.2f}%、面積相近 {zc['臺北市']['size_matched']:.2f}%）。"
         "三種方法、三個期間，差距約在零點一個百分點上下。"))
     A(P("改成和第 6 節的界線對照，而不是和點估計對照：目前的刊登數字與 2013–2016 年的租金乘數"
         "都落在「相似性假設」的區間之內，而流通中的 1.57% 落在它之下——"
@@ -534,9 +609,11 @@ def build(D):
           f"橘色為實價登錄本身（沒有租約紀錄），共 {law_pp:.1f} 個百分點；"
           f"藍色為本專案的品質篩選，合計 {ours_pp:.1f} 個百分點。"
           f"制度側佔全部流失的 {wf['law_share']}%。"))
-    A(P("「沒有租約紀錄」不等於「租約未登錄」。實價登錄只收到透過"
-        "租賃住宅服務業與不動產經紀業申報的租約，而那些建物大多本來就是自住。"
-        "重點是：再怎麼清理，都救不回一份從未被申報的租約。"
+    A(P("「沒有租約紀錄」不等於「租約未登錄」，而原因在法律裡，不在資料裡。"
+        "租約的申報義務只有兩種：仲介業者對其居間或代理成交的租賃案件應申報登錄"
+        f"{cite('law_broker')}；包租業對其轉租案件應申報登錄{cite('law_sublease')}，"
+        "兩者都是三十日內。房東與房客直接簽約的租約，沒有任何申報義務，所以永遠不會進到實價登錄——"
+        "而那些建物大多本來就是自住。再怎麼清理，都救不回一份從未被申報的租約。"
         f"把本專案的每一道篩選都拿掉，上限是 <b>{p2(wf['ceiling_pct'])}</b>。"))
     A(P("哪些建物存活下來", "h2"))
     A(fig(hbars([("住宅大樓", tw["match_rate"], None, None, ACCENT),
@@ -1123,6 +1200,13 @@ def build(D):
         ["淨值直方圖與滑桿", "「滑桿會改變這張圖」", "其實不會；已修正", "四代理人稽核"],
         ["拍賣登錄佔比", "佔建物的 13.8%", "佔標的件數的 14.0%（單位已明確）", "稽核"],
         ["分租篩選的標籤", "「分租套房」", "也包含未填與分層出租（5,964 筆）", "資料清理稽核"],
+        ["臺南與刊登數字的差距（第 4 節）", pp(zc["臺南市"]["headline"] - GPG_CITIES["臺南市"]),
+         f"每坪 {pp(zc['臺南市']['per_ping'] - GPG_CITIES['臺南市'])}、"
+         f"面積相近 {pp(zc['臺南市']['size_matched'] - GPG_CITIES['臺南市'])}",
+         "寄出前的壓力測試（v1.3）"],
+        ["城市範圍（第 4 節）", "「大量非都市地區」", "已量測：臺南原市區的報酬率高於原臺南縣",
+         "寄出前的壓力測試（v1.3）"],
+        ["租約申報規則（第 5 節）", "僅有主張", "已引用所依據的兩條法律", "寄出前的壓力測試（v1.3）"],
     ]
     A(tbl(reg, [40 * mm, 42 * mm, 48 * mm, FRAME_W - 130 * mm], wrap=(0, 1, 2, 3), size=7.6))
     A(Spacer(1, 6))
@@ -1254,6 +1338,7 @@ def build(D):
         "pricerent": "在同一間房子上同時量價格與租金",
         "taiwan": "臺灣",
         "method": "方法：歸因，以及群聚下的區間",
+        "law": "實價登錄涵蓋範圍所依據的法律",
         "data": "用來對照的資料，不是文獻",
     }
     for g in GROUP_ORDER:
@@ -1262,10 +1347,11 @@ def build(D):
             continue
         A(P(heads[g], "h2"))
         for _k, r in rows:
-            A(KeepTogether([
-                P(_safe(f"{r['full']} ({r['year']}). <b>{r['title']}</b>. <i>{r['where']}</i>.")),
-                P(_safe(why(_k, "zh")), "note"),
-            ]))
+            block = [P(_safe(f"{byline(r)}. <b>{r['title']}</b>. <i>{r['where']}</i>."))]
+            if r.get("quote"):
+                block.append(P(_safe(f"「{r['quote']}」"), "note"))
+            block.append(P(_safe(why(_k, "zh")), "note"))
+            A(KeepTogether(block))
     orphans = uncited()
     if orphans:
         raise SystemExit("references: nothing cites " + ", ".join(orphans))

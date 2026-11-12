@@ -4,7 +4,7 @@
 [![CI](https://github.com/Stanley0210/taiwan-rental-yield/actions/workflows/ci.yml/badge.svg)](https://github.com/Stanley0210/taiwan-rental-yield/actions/workflows/ci.yml)
 
 **Live page:** https://stanley0210.github.io/taiwan-rental-yield/
-**Paper (PDF, v1.2):** [English](docs/HOUSING_FINAL_REPORT.pdf) ·
+**Paper (PDF, v1.3):** [English](docs/HOUSING_FINAL_REPORT.pdf) ·
 [中文版](docs/HOUSING_FINAL_REPORT_ZH.pdf) ·
 **Two-page brief:** [English](docs/HOUSING_BRIEF.pdf) ·
 [中文版](docs/HOUSING_BRIEF_ZH.pdf) ·
@@ -66,20 +66,29 @@ consumer-facing number are the same number, and neither is built on transaction
 data. A ratio of two medians taken over different properties is also not a median
 of per-property ratios; only the second is a yield a building could have earned.
 
-Set side by side, city by city, for the five cities both cover:
+Set side by side, city by city, for the five cities both cover. A pair here is a
+sale and a lease in the same *building*, not the same unit, so every figure is
+given three ways: the headline (total rent ÷ total price), per 坪, and on pairs
+whose two units are the same size.
 
-| City | This paper (transacted, matched) | Global Property Guide (asking) | difference |
-|---|---|---|---|
-| 臺北市 Taipei | 2.08% [2.03–2.12] | 1.97% | +0.11pp |
-| 新北市 New Taipei | 2.26% [2.23–2.29] | 2.19% | +0.07pp |
-| 桃園市 Taoyuan | 2.56% [2.48–2.63] | 2.44% | +0.12pp |
-| 高雄市 Kaohsiung | 2.91% [2.86–2.93] | 2.57% | +0.34pp |
-| 臺南市 Tainan | 3.07% [2.94–3.14] | 2.12% | +0.95pp |
+| City | headline | per 坪 | size-matched | Global Property Guide (asking) | gap, three readings |
+|---|---|---|---|---|---|
+| 臺北市 Taipei | 2.08% [2.03–2.12] | 2.09% | 2.10% | 1.97% | +0.11 to +0.13pp |
+| 新北市 New Taipei | 2.26% [2.23–2.29] | 2.29% | 2.27% | 2.19% | +0.07 to +0.10pp |
+| 桃園市 Taoyuan | 2.56% [2.48–2.63] | 2.58% | 2.57% | 2.44% | +0.12 to +0.14pp |
+| 高雄市 Kaohsiung | 2.91% [2.86–2.93] | 2.82% | 2.87% | 2.57% | +0.25 to +0.34pp |
+| 臺南市 Tainan | 3.07% [2.94–3.14] | 2.92% | 3.00% | 2.12% | +0.80 to +0.95pp |
 
-The registry measure is higher in all five, and the gap widens going south. This
-is indicative, not like-for-like — the listings figure covers apartments inside
-five city boundaries, this one covers 4+ storey residential buildings across the
-whole county, and the windows differ — but the direction is the same everywhere.
+The registry measure is higher in all five under all three readings, and the gap
+widens going south. Nationally the three readings agree — 2.55%, 2.53% and
+2.55% — because size mismatches run both ways and cancel in a median. City by
+city they separate, which is why each gap is a range: editions before v1.3 quoted
+臺南 at +0.95pp from the headline reading alone, which is the top of that range.
+
+Footprint does not create the southern gap. 臺南 and 高雄 merged with their
+counties in 2010; 臺南's pre-merger city proper yields 3.20% against 2.85% in
+the former county, so the wider footprint hides part of the gap rather than
+making it. What stays unlike-for-like is the source and the window.
 
 Taipei has three independent estimates and they agree within about a tenth of a
 point: 1.97% (listings, 2026), about 2.0% (a Taipei gross rent multiplier of ~50
@@ -122,7 +131,7 @@ python src/housing_final_report.py       # rebuilds the paper      -> docs/
 python src/housing_final_report_zh.py    # rebuilds the 中文版     -> docs/
 python src/housing_brief.py              # the two-page brief      -> docs/
 python src/housing_brief_zh.py           # the 中文版 brief        -> docs/
-pytest tests/ -q                         # 303 tests
+pytest tests/ -q                         # 326 tests
 ```
 
 All four documents read the same `housing_data.json`, so they cannot disagree
@@ -175,6 +184,7 @@ they move independently:
 | 1.1 | v1.0 | the archive gained the Traditional Chinese edition; no claim moved |
 | 1.2 | v1.1 | references, the comparison above, a rewritten §18, payload v2.9 |
 | 1.3 | v1.2 | the resemblance assumption tested and found to half fail; payload v2.10 |
+| 1.4 | v1.3 | the unit-size objection measured, the city gaps restated as ranges, the lease-filing rule cited to statute; payload v2.12 |
 
 ## Source and licence
 

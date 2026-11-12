@@ -71,13 +71,15 @@ def build(D):
     A(Spacer(1, 7))
 
     A(P("Method", "h2"))
+    zr = D["size_robust"]
     A(P(f"Pair a registered sale with a registered lease <i>in the same building</i> within four "
-        f"quarters, and a gross yield falls out with no modelling. Done nationally over "
-        f"{meta['n_seasons']} quarters: {n0(h['pairs'])} pairs across {n0(h['buildings'])} buildings. "
-        "Every headline is a median of per-building medians, never per pair — pairs concentrate in "
-        f"mega-towers, and the pair-weighted figure ({p2(h['pair_level_yield'])}) overweights exactly "
-        "the least typical buildings. Intervals are a two-stage bootstrap over buildings then pairs; "
-        "net deducts four costs, each sourced or bounded."))
+        f"quarters, and a gross yield falls out with no modelling: {n0(h['pairs'])} pairs across "
+        f"{n0(h['buildings'])} buildings over {meta['n_seasons']} quarters. Every headline is a "
+        "median of per-building medians, never per pair, because pairs concentrate in mega-towers. "
+        "A pair is the same building, not the same unit, so the median is recomputed on pairs whose "
+        f"two units are the same size ({zr['size_matched']['gross']:.2f}%) and per 坪 "
+        f"({zr['per_ping']['gross']:.2f}%): the headline holds. Intervals are a two-stage "
+        "bootstrap; net deducts four costs, each sourced or bounded."))
 
     A(P("The finding is the denominator", "h2"))
     A(P(f"Those medians describe <b>{n0(h['buildings'])} of {n0(h['universe_buildings'])}</b> buildings "
@@ -113,10 +115,9 @@ def build(D):
             f"one — and it cannot be repaired by conditioning further: at {p2(h['coverage_pct'])} "
             "coverage the cells run out of buildings first.",
             "The one number here that is not good news"))
-    A(P(f"<b>Why it cannot be narrowed.</b> A median's worst-case interval only leaves the support "
-        f"band once more than {pid['median_bound_requires_coverage_pct']:.0f}% of the population is "
-        f"observed, and this registry can never show more than {p2(h['coverage_ceiling_pct'])}. The "
-        "width is a property of the registry, not of the cleaning.", "note"))
+    A(P(f"<b>Why it cannot be narrowed.</b> A median's worst-case interval leaves the support band "
+        f"only once more than {pid['median_bound_requires_coverage_pct']:.0f}% of the population is "
+        f"observed; this registry can never show more than {p2(h['coverage_ceiling_pct'])}.", "note"))
 
     A(P("Against the figure in circulation", "h2"))
     A(P(f"{cite_t('chang2018')} report a gross rent multiplier of 64 for Taiwan and a yield of "
@@ -125,27 +126,36 @@ def build(D):
         "peer-reviewed Taiwan number and the consumer-facing one are the same number, and neither "
         "is built on transaction data. City by city, against the five both cover:"))
     gp = sorted([c for c in D["counties"] if c["city"] in GPG_CITIES], key=lambda c: -c["buildings"])
-    rows = [["City", "This work (transacted)", "95% CI", "buildings", f"Listings ({GPG_UPDATED})", "diff"]]
+    zc = {r["city"]: r for r in zr["counties"]}
+
+    def gaps(city):
+        g, r = GPG_CITIES[city], zc[city]
+        return sorted([r["headline"] - g, r["per_ping"] - g, r["size_matched"] - g])
+
+    rows = [["City", "headline", "95% CI", "per 坪", "size-matched",
+             f"Listings ({GPG_UPDATED})", "gap, three readings"]]
     for c in gp:
-        g = GPG_CITIES[c["city"]]
-        ci = boot["county"].get(c["county"])
-        rows.append([c["city"], p2(c["yield"]), f"{ci['lo']:.2f}–{ci['hi']:.2f}" if ci else "—",
-                     n0(c["buildings"]), p2(g), pp(c["yield"] - g)])
-    A(tbl(rows, [24 * mm, 30 * mm, 24 * mm, 22 * mm, 30 * mm, FRAME_W - 130 * mm],
-          right=(1, 2, 3, 4, 5), size=7.8))
+        r, ci = zc[c["city"]], boot["county"].get(c["county"])
+        lo_g, _m, hi_g = gaps(c["city"])
+        rows.append([c["city"], p2(r["headline"]), f"{ci['lo']:.2f}–{ci['hi']:.2f}" if ci else "—",
+                     p2(r["per_ping"]), p2(r["size_matched"]), p2(GPG_CITIES[c["city"]]),
+                     f"{lo_g:+.2f} to {hi_g:+.2f}pp"])
+    A(tbl(rows, [20 * mm, 20 * mm, 24 * mm, 18 * mm, 24 * mm, 30 * mm, FRAME_W - 136 * mm],
+          right=(1, 2, 3, 4, 5, 6), size=7.6))
     A(Spacer(1, 4))
-    worst = max(gp, key=lambda c: c["yield"] - GPG_CITIES[c["city"]])
-    A(P(f"Higher in all five, widening going south — {worst['city']} differs by "
-        f"{pp(worst['yield'] - GPG_CITIES[worst['city']])}. Indicative, not like-for-like: different "
-        "footprints, units and windows. Taipei has three independent estimates, agreeing to about a "
-        "tenth of a point.", "note"))
+    worst = max(gp, key=lambda c: gaps(c["city"])[0])
+    wl, _wm, wh = gaps(worst["city"])
+    fp = {(r["city"], r["part"]): r for r in zr["footprint"]}
+    A(P(f"Higher in all five under all three readings, widening going south — {worst['city']} by "
+        f"{wl:+.2f} to {wh:+.2f}pp. Footprint does not create that gap: 臺南's pre-2010 city proper "
+        f"yields {fp[('臺南市', 'city_proper')]['headline']:.2f}% against "
+        f"{fp[('臺南市', 'former_county')]['headline']:.2f}% in the former county.", "note"))
 
     A(P("What was withdrawn", "h2"))
     A(KeepTogether(bullets([
         "<b>The founding hypothesis is unanswerable.</b> Walk-ups out-yield towers and the sign "
         "survives every control, but matched towers depart from their own population far more than "
-        "matched walk-ups do, and two separately skewed samples cannot settle a population question. "
-        "Its proposed mechanism is separately falsified: where the modelled fee is zero, the gap stays.",
+        "matched walk-ups do, and two separately skewed samples cannot settle a population question.",
         "<b>The transit gradient is retracted.</b> It survived only if 輕軌 did not count as a "
         "station, and vanished entirely in Kaohsiung.",
         "<b>\"One building in 1,086\" is withdrawn.</b> It divided 棟 by 建號 — two different units.",
@@ -154,13 +164,13 @@ def build(D):
     A(Spacer(1, 4))
     A(P(f"Every figure above is read from <i>housing_data.json</i> at build time, whose SHA-256 is "
         f"pinned beside it, and the payload hashes every source archive the build read. "
-        f"<b>{REPO}</b> · <b>doi.org/{DOI}</b> · full report 27pp, English and 中文.", "note"))
+        f"<b>{REPO}</b> · <b>doi.org/{DOI}</b> · the full report is there, in English and 中文.", "note"))
 
     A(callout(
-        "<b>1 · Coverage.</b> Does 實價登錄 really receive only leases filed through licensed "
-        f"rental-service and brokerage firms? That rule carries {wf['law_pp']:.0f} of the "
-        f"{100 - h['coverage_pct']:.0f} percentage points of non-coverage — the load-bearing fact "
-        "here.<br/>"
+        "<b>1 · Coverage.</b> Only a broker (不動產經紀業管理條例 §24-1) and a master-lease business "
+        "(租賃住宅市場發展及管理條例 §34) must register a lease. Is there any published figure for the "
+        f"share of residential leases under neither duty? Here it is {wf['law_pp']:.0f} of the "
+        f"{100 - h['coverage_pct']:.0f} points of non-coverage.<br/>"
         "<b>2 · Conditioning.</b> Given the balance result, is there a conditioning set this "
         "registry supports that beats type × price decile — or is partial identification the end "
         "of the road?<br/>"

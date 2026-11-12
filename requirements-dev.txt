@@ -11,3 +11,7 @@
 # docs/REPRODUCING.md, payload 2.9).
 -r requirements.txt
 pytest==9.0.3
+# Reads glyph geometry, which pypdf cannot: tests/test_layout.py uses it to
+# catch text running past the page frame. A sentence did, and shipped, because
+# the check was a thing run by hand rather than a test.
+pypdfium2==5.14.0

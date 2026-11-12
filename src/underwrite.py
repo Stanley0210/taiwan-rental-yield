@@ -50,7 +50,7 @@ OUT = os.environ.get("LVR_OUT", "housing_data.json")
 # can tell whether they are looking at different code or different data --
 # 實價登錄 grows every quarter, and without this a rebuild that disagrees is
 # indistinguishable from a bug.
-PAYLOAD_VERSION = "2.11"
+PAYLOAD_VERSION = "2.12"
 
 MATCH_WINDOW_Q = 4          # +/- quarters a sale and a lease may be apart
 
@@ -149,12 +149,18 @@ def district_price_index(sales):
     return idx
 
 
-def match_pairs(sales, rents, window=MATCH_WINDOW_Q, index=None):
+def match_pairs(sales, rents, window=MATCH_WINDOW_Q, index=None, per_ping=False):
     """Tier-1 join: same normalised building key, within `window` quarters.
 
     When `index` is supplied the sale price is restated at the lease's quarter,
     so the pair measures a yield rather than a yield plus however much the
     district moved in between.
+
+    A pair is a sale and a lease in the same BUILDING, not the same unit, and
+    the headline yield is total rent over total price. `per_ping=True` divides
+    each side by its own floor area first, so a studio's rent is not set against
+    a three-bedroom's price. The headline keeps the total form it was published
+    with; size_robust_block() publishes what the other form says.
     """
     if sales.empty or rents.empty:
         return pd.DataFrame()
@@ -188,9 +194,131 @@ def match_pairs(sales, rents, window=MATCH_WINDOW_Q, index=None):
                        in zip(m.county, m.district, m.q_r)])
         price = price * np.where(fs > 0, fr / fs, 1.0)
     m["price_adj"] = price
-    m["gross"] = (m.rent * 12.0) / m.price_adj * 100.0
+    if per_ping:
+        m["gross"] = ((m.rent / m.area_ping_r * 12.0)
+                      / (m.price_adj / m.area_ping_s) * 100.0)
+    else:
+        m["gross"] = (m.rent * 12.0) / m.price_adj * 100.0
     lo, hi = YIELD_BAND
     return m[(m.gross > lo) & (m.gross < hi)]
+
+
+SIZE_BAND = (0.8, 1.25)     # sold area / leased area that counts as "the same size"
+SIZE_SEED = 61
+
+# The districts that WERE the city before 臺南 and 高雄 each merged with their
+# county on 2010-12-25. Administrative fact, so typed. They matter because a
+# listings site's "Tainan City" concentrates in the old city while a
+# municipality-wide registry median also covers the former county, and the paper
+# used to hedge about that instead of measuring it.
+CITY_PROPER = {
+    "d": {"東區", "南區", "北區", "中西區", "安平區", "安南區"},
+    "e": {"鹽埕區", "鼓山區", "左營區", "楠梓區", "三民區", "新興區", "前金區",
+          "苓雅區", "前鎮區", "旗津區", "小港區"},
+}
+
+
+def size_robust_block(sales, rents, pairs, b, index=None, n_boot=200, n_county=120):
+    """Does the headline survive the unit-size objection?
+
+    The objection: every sale in a building is paired with every lease in that
+    building, and the yield is total rent over total price. Nothing makes the
+    two units the same size, so a leased studio set against a sold three-bedroom
+    reads as a low yield and the reverse as a high one. The quality band removes
+    only the grossest cases. No edition up to v1.2 mentioned this, and it is the
+    first thing an appraiser asks.
+
+    Three readings of the same registry rows, all at building level:
+      headline      total rent / total price            (as published)
+      per_ping      rent per 坪 / price per 坪, per pair, with its own band
+      size_matched  headline form, but only pairs whose two units are within
+                    SIZE_BAND of each other -- the closest this registry gets to
+                    the same-unit design of Bracke (2015)
+
+    Own rng seed, so no published interval moves.
+    """
+    if pairs.empty or b.empty:
+        return {}
+    rng = np.random.default_rng(SIZE_SEED)
+    pp_ = match_pairs(sales, rents, index=index, per_ping=True)
+    b_pp = to_buildings(pp_)
+    lo_r, hi_r = SIZE_BAND
+    ratio = pairs.area_ping_s / pairs.area_ping_r
+    sm = pairs[(ratio >= lo_r) & (ratio <= hi_r)]
+    b_sm = to_buildings(sm)
+
+    def ci(frame, bb, keys, n):
+        gp = {k: g.gross.values for k, g in frame.groupby(["county", "k"])}
+        return two_stage_ci(gp, [k for k in keys if k in gp], n, rng)
+
+    def keys_of(bb):
+        return list(zip(bb.county, bb.k))
+
+    pp_lo, pp_hi = ci(pp_, b_pp, keys_of(b_pp), n_boot)
+    sm_lo, sm_hi = ci(sm, b_sm, keys_of(b_sm), n_boot)
+    head = median(b.gross)
+
+    def q(series):
+        v = series.dropna()
+        return {"p10": round(float(v.quantile(0.10)), 3), "p25": round(float(v.quantile(0.25)), 3),
+                "median": round(float(v.median()), 3), "p75": round(float(v.quantile(0.75)), 3),
+                "p90": round(float(v.quantile(0.90)), 3)}
+
+    b_ratio = b.area / b.rent_area
+    counties = []
+    for c, grp in b.groupby("county"):
+        if len(grp) < MIN_DISTRICT_N:
+            continue
+        gpp = b_pp[b_pp.county == c]
+        gsm = b_sm[b_sm.county == c]
+        row = {"county": c, "city": L.COUNTIES.get(c, c), "buildings": int(len(grp)),
+               "headline": median(grp.gross),
+               "per_ping": median(gpp.gross) if len(gpp) >= MIN_DISTRICT_N else None,
+               "buildings_pp": int(len(gpp)),
+               "size_matched": median(gsm.gross) if len(gsm) >= MIN_DISTRICT_N else None,
+               "buildings_sm": int(len(gsm))}
+        if len(gpp) >= MIN_DISTRICT_N:
+            lo_, hi_ = ci(pp_[pp_.county == c], gpp, keys_of(gpp), n_county)
+            row["pp_lo"], row["pp_hi"] = lo_, hi_
+        counties.append(row)
+    footprint = []
+    for c, proper in CITY_PROPER.items():
+        for label, mask_b, mask_pp in (
+                ("city_proper", (b.county == c) & b.district.isin(proper),
+                 (b_pp.county == c) & b_pp.district.isin(proper)),
+                ("former_county", (b.county == c) & ~b.district.isin(proper),
+                 (b_pp.county == c) & ~b_pp.district.isin(proper))):
+            g1, g2 = b[mask_b], b_pp[mask_pp]
+            footprint.append({"county": c, "city": L.COUNTIES.get(c, c), "part": label,
+                              "buildings": int(len(g1)), "headline": median(g1.gross),
+                              "per_ping": median(g2.gross), "buildings_pp": int(len(g2))})
+    types = []
+    for t, grp in b.groupby("bldg_type"):
+        gpp = b_pp[b_pp.bldg_type == t]
+        gsm = b_sm[b_sm.bldg_type == t]
+        types.append({"type": t, "buildings": int(len(grp)), "headline": median(grp.gross),
+                      "per_ping": median(gpp.gross), "size_matched": median(gsm.gross)})
+    return {
+        "band": list(SIZE_BAND), "seed": SIZE_SEED,
+        "headline": {"gross": head, "buildings": int(len(b)), "pairs": int(len(pairs))},
+        "per_ping": {"gross": median(b_pp.gross), "lo": pp_lo, "hi": pp_hi,
+                     "buildings": int(len(b_pp)), "pairs": int(len(pp_)),
+                     "shift_pp": round(median(b_pp.gross) - head, 4)},
+        "size_matched": {"gross": median(b_sm.gross), "lo": sm_lo, "hi": sm_hi,
+                         "buildings": int(len(b_sm)), "pairs": int(len(sm)),
+                         "shift_pp": round(median(b_sm.gross) - head, 4),
+                         "kept_buildings_pct": round(len(b_sm) / len(b) * 100, 1),
+                         "kept_pairs_pct": round(len(sm) / len(pairs) * 100, 1)},
+        "ratio": {
+            "pair": q(ratio), "building": q(b_ratio),
+            "pairs_within_band_pct": round(float(((ratio >= lo_r) & (ratio <= hi_r)).mean()) * 100, 1),
+            "pairs_sold_bigger_pct": round(float((ratio > hi_r).mean()) * 100, 1),
+            "pairs_leased_bigger_pct": round(float((ratio < lo_r).mean()) * 100, 1),
+        },
+        "counties": sorted(counties, key=lambda r: -r["buildings"]),
+        "footprint": footprint,
+        "types": types,
+    }
 
 
 def roc_ym(v):
@@ -4755,6 +4883,8 @@ def build(last_season=LAST_SEASON):
         "coverage_waterfall": wf,
         "post_strat": post_stratify(b, ub),
         "resemblance": resemblance_balance(b, ub),
+        "size_robust": size_robust_block(sales, rents, pairs, b,
+                                         index=index if USE_PRICE_INDEX else None),
         "bootstrap": bootstrap_cis(pairs, b),
         "dispersion": dispersion(pairs, b),
         "repairs_spec": repairs_specification(b),

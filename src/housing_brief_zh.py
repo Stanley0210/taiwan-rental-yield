@@ -55,13 +55,15 @@ def build(D):
              (n0(h["buildings"]), f"可配對建物<br/>{n0(h['pairs'])} 組買賣—租賃配對")]))
     A(Spacer(1, 7))
 
+    zr = D["size_robust"]
     A(P("方法", "h2"))
     A(P(f"把一筆登錄的買賣，與<i>同一棟樓</i>內相隔四季以內的一筆登錄租約配成對，"
         f"毛報酬率就直接算得出來，完全不需要任何模型。以全國資料、涵蓋 {meta['n_seasons']} 季："
         f"{n0(h['buildings'])} 棟建物、{n0(h['pairs'])} 組配對。"
-        "每一個主要數字都是「各棟中位數」的中位數，絕不以配對計——配對集中在少數巨型大樓，"
-        f"以配對加權的數字（{p2(h['pair_level_yield'])}）剛好會加重那些最不具代表性的建物。"
-        "區間來自先重抽建物、再重抽棟內配對的兩階段拔靴法；淨報酬率扣除四項成本，每一項都有來源或界線。"))
+        "每一個主要數字都是「各棟中位數」的中位數，絕不以配對計，因為配對集中在少數巨型大樓。"
+        "一組配對是同一棟、不是同一戶，所以同一個中位數另外以「兩戶面積相近的配對」"
+        f"（{zr['size_matched']['gross']:.2f}%）與「每坪」（{zr['per_ping']['gross']:.2f}%）重算一次："
+        "主數字站得住。區間來自兩階段拔靴法；淨報酬率扣除四項成本，每一項都有來源或界線。"))
 
     A(P("真正的發現是分母", "h2"))
     A(P(f"上面那些中位數描述的，是 {n0(h['universe_buildings'])} 棟成交建物裡的 "
@@ -107,19 +109,30 @@ def build(D):
         "與面向消費者的那個是同一個數字，而兩者都不是建立在成交資料上。逐一城市對照，"
         "兩邊都涵蓋的那五個："))
     gp = sorted([c for c in D["counties"] if c["city"] in GPG_CITIES], key=lambda c: -c["buildings"])
-    rows = [["城市", "本研究（成交）", "95% 信賴區間", "棟數", f"刊登（{GPG_UPDATED}）", "差異"]]
+    zc = {r["city"]: r for r in zr["counties"]}
+
+    def gaps(city):
+        g, r = GPG_CITIES[city], zc[city]
+        return sorted([r["headline"] - g, r["per_ping"] - g, r["size_matched"] - g])
+
+    rows = [["城市", "主數字", "95% 信賴區間", "每坪", "面積相近", f"刊登（{GPG_UPDATED}）", "差距（三種讀法）"]]
     for c in gp:
-        g = GPG_CITIES[c["city"]]
-        ci = boot["county"].get(c["county"])
-        rows.append([c["city"], p2(c["yield"]), f"{ci['lo']:.2f}–{ci['hi']:.2f}" if ci else "—",
-                     n0(c["buildings"]), p2(g), pp(c["yield"] - g)])
-    A(tbl(rows, [22 * mm, 28 * mm, 26 * mm, 20 * mm, 30 * mm, FRAME_W - 126 * mm],
-          right=(1, 2, 3, 4, 5), size=7.4))
+        r, ci = zc[c["city"]], boot["county"].get(c["county"])
+        lo_g, _m, hi_g = gaps(c["city"])
+        rows.append([c["city"], p2(r["headline"]), f"{ci['lo']:.2f}–{ci['hi']:.2f}" if ci else "—",
+                     p2(r["per_ping"]), p2(r["size_matched"]), p2(GPG_CITIES[c["city"]]),
+                     f"{lo_g:+.2f} 至 {hi_g:+.2f}pp"])
+    A(tbl(rows, [20 * mm, 18 * mm, 26 * mm, 16 * mm, 22 * mm, 30 * mm, FRAME_W - 132 * mm],
+          right=(1, 2, 3, 4, 5, 6), size=7.2))
     A(Spacer(1, 4))
-    worst = max(gp, key=lambda c: c["yield"] - GPG_CITIES[c["city"]])
-    A(P(f"五個城市全部都是登錄資料算出來的比較高，往南落差愈大——{worst['city']}差 "
-        f"{pp(worst['yield'] - GPG_CITIES[worst['city']])}。這只是指示性的對照，並非嚴格同類比較："
-        "涵蓋範圍、單位與期間都不同。臺北市有三個獨立估計，彼此相差約零點一個百分點。", "note"))
+    worst = max(gp, key=lambda c: gaps(c["city"])[0])
+    wl, _wm, wh = gaps(worst["city"])
+    fp = {(r["city"], r["part"]): r for r in zr["footprint"]}
+    A(P(f"在三種讀法之下，五個城市全部都是登錄資料算出來的比較高，往南落差愈大——{worst['city']}差 "
+        f"{wl:+.2f} 至 {wh:+.2f} 個百分點。這個落差不是涵蓋範圍造成的：臺南合併前的原市區報酬率為 "
+        f"{fp[('臺南市', 'city_proper')]['headline']:.2f}%，原臺南縣為 "
+        f"{fp[('臺南市', 'former_county')]['headline']:.2f}%。"
+        "臺北市有三個獨立估計，彼此相差約零點一個百分點。", "note"))
 
     A(P("被撤回的結果", "h2"))
     A(KeepTogether(bullets([
@@ -133,12 +146,13 @@ def build(D):
     A(Spacer(1, 4))
     A(P(f"上面每一個數字都是在建置時從 <i>housing_data.json</i> 讀出來的，"
         f"它的 SHA-256 就釘在旁邊，而資料檔也為這次建置讀過的每一份原始壓縮檔留了雜湊值。"
-        f"<b>{B.REPO}</b> · <b>doi.org/{B.DOI}</b> · 完整報告 27 頁，有英文版與中文版。", "note"))
+        f"<b>{B.REPO}</b> · <b>doi.org/{B.DOI}</b> · 完整報告在此，有英文版與中文版。", "note"))
 
     A(callout(
-        "<b>1 · 覆蓋率。</b>實價登錄是否真的只收到透過合法登記的租賃住宅服務業與不動產經紀業"
-        f"申報的租約？這條規則承擔了 {100 - h['coverage_pct']:.0f} 個百分點未覆蓋當中的 "
-        f"{wf['law_pp']:.0f} 個——也是本研究最承重的一項事實。<br/>"
+        "<b>1 · 覆蓋率。</b>租約的申報義務只有兩種：仲介業（不動產經紀業管理條例 §24-1）"
+        "與包租業（租賃住宅市場發展及管理條例 §34）。是否有任何公開的統計，"
+        "說明住宅租約中「兩種義務都不適用」的比例？在本研究裡，它佔了 "
+        f"{100 - h['coverage_pct']:.0f} 個百分點未覆蓋當中的 {wf['law_pp']:.0f} 個。<br/>"
         "<b>2 · 條件化。</b>在上面那個平衡檢驗的結果之下，這套登錄資料是否還支持某一組條件化變數，"
         "能夠勝過「型態×價格十分位」——還是說，部分識別就是這裡的終點？<br/>"
         f"<b>3 · 成本模型。</b>{p2(h['net'])} 的淨報酬率，與實務上看到的相符嗎？"

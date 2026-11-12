@@ -158,14 +158,45 @@ GPG_SOURCE = dict(
         "report. Section 4 sets it beside the registry measurement city by city.")
 REFERENCES["gpg2026"] = GPG_SOURCE
 
+# ── the law the registry's coverage rests on ────────────────────────────────
+# Section 5's central institutional fact -- that a lease reaches 實價登錄 only
+# when a broker or a master-lease business was involved -- was asserted for
+# three editions without a source. It has a primary one: these two articles are
+# the only duties to register a lease, and neither falls on a landlord and a
+# tenant who sign with each other directly. Text as in force, read from the
+# Ministry of Justice database on LAW_READ_ON. `label` is the inline form, since
+# a statute has no author and year.
+LAW_READ_ON = "2026-11-11"
+REFERENCES["law_broker"] = dict(
+    group="law", year=2026, authors=["不動產經紀業管理條例"],
+    full="不動產經紀業管理條例", label="不動產經紀業管理條例 §24-1",
+    title="第 24 條之 1（租賃案件成交資訊之申報登錄）",
+    where=f"全國法規資料庫 law.moj.gov.tw, pcode D0060066; text in force, read {LAW_READ_ON}",
+    quote="經營仲介業務者，對於居間或代理成交之租賃案件，應於簽訂租賃契約書之日起三十日內，"
+          "向直轄市、縣（市）主管機關申報登錄成交案件實際資訊。",
+    why="The first of the only two duties to register a lease: a broker must register the "
+        "leases it brokers or agents, within thirty days. A lease with no broker is outside it.")
+REFERENCES["law_sublease"] = dict(
+    group="law", year=2026, authors=["租賃住宅市場發展及管理條例"],
+    full="租賃住宅市場發展及管理條例", label="租賃住宅市場發展及管理條例 §34",
+    title="第 34 條第 2 項（包租業轉租案件之申報登錄）",
+    where=f"全國法規資料庫 law.moj.gov.tw, pcode D0060125; text in force, read {LAW_READ_ON}",
+    quote="包租業之租賃住宅轉租案件，應於簽訂轉租契約之日起三十日內，"
+          "向直轄市、縣（市）主管機關申報登錄成交案件實際資訊。",
+    why="The second: a master-lease business must register its subleases. Together with the "
+        "broker duty this is the whole of the registry's lease intake, which is why a building "
+        "with no lease on file is the rule rather than a data-quality failure.")
+
 # Group headings are rendered by each edition in its own language; this fixes
 # only the order they appear in.
-GROUP_ORDER = ["bounds", "selection", "pricerent", "taiwan", "method", "data"]
+GROUP_ORDER = ["bounds", "selection", "pricerent", "taiwan", "law", "method", "data"]
 
 _CITED = set()
 
 
 def _who(r):
+    if r.get("label"):
+        return r["label"]
     a = r["authors"]
     return (a[0] if len(a) == 1 else
             f"{a[0]} and {a[1]}" if len(a) == 2 else
@@ -186,7 +217,8 @@ def cite(*keys):
         # "2005" across a line break happened in the Chinese edition, where a CJK
         # line's only breakable spaces are the ones bracketing Latin text. It is
         # wrong in English too, so both editions get it.
-        out.append(f"{_who(r)} {r['year']}".replace(" ", "&nbsp;"))
+        lab = _who(r) if r.get("label") else f"{_who(r)} {r['year']}"
+        out.append(lab.replace(" ", "&nbsp;"))
     return "(" + "; ".join(out) + ")"
 
 
@@ -194,6 +226,8 @@ def cite_t(key):
     """Textual form: 'Chang and Chen (2018)', to use as a sentence subject."""
     r = REFERENCES[key]
     _CITED.add(key)
+    if r.get("label"):
+        return r["label"].replace(" ", "&nbsp;")
     return f"{_who(r)} ({r['year']})".replace(" ", "&nbsp;")
 
 
@@ -227,8 +261,20 @@ WHY_ZH = {'manski1989': '把本專案面對的問題講清楚：當結果變數�
     'gpg2026': '一般流通、也是 Chang 與 Chen（2018）所引用的那個數字。第 4 節把它與登錄資料的量測逐一城市並列。'}
 
 
+WHY_ZH["law_broker"] = ("租約只有兩種申報義務，這是第一種：仲介業者對其居間或代理成交的租賃案件，"
+                         "應於三十日內申報登錄。沒有經過仲介的租約不在其內。")
+WHY_ZH["law_sublease"] = ("第二種：包租業對其轉租案件應申報登錄。這兩條加起來，就是實價登錄租賃資料的全部來源，"
+                           "所以「一棟樓查不到任何租約」是常態，而不是資料品質出了問題。")
+
+
 def why(key, lang="en"):
     """The annotation under an entry, in the edition's own language."""
     if lang == "zh":
         return WHY_ZH[key]
     return REFERENCES[key]["why"]
+
+
+def byline(r):
+    """How an entry opens in the reference list. A statute has no year of
+    publication worth printing; the date it was read is in `where`."""
+    return r["full"] if r.get("label") else f"{r['full']} ({r['year']})"

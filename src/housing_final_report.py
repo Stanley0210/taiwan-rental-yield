@@ -32,7 +32,7 @@ from reportlab.platypus import (BaseDocTemplate, CondPageBreak, Frame, KeepToget
                                 TableStyle)
 
 from references import (EXTERNAL_READ_ON, GPG_CITIES, GPG_NATIONAL, GPG_UPDATED,
-                        GROUP_ORDER, cite, cite_t, entries, uncited)
+                        GROUP_ORDER, byline, cite, cite_t, entries, uncited)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -54,13 +54,23 @@ OUT = os.environ.get("REPORT_OUT", os.path.join(ROOT, "docs", "HOUSING_FINAL_REP
 
 # The citable edition of this write-up. The payload carries its own version;
 # these two move independently and the cover prints both.
-PAPER_VERSION = "v1.2"
-PAPER_DATE = "2026-11-04"
+PAPER_VERSION = "v1.3"
+PAPER_DATE = "2026-11-11"
 
 # Section 16 registers corrections to numbers. This registers editions of the
 # write-up, which is a different thing and was missing: v1.0 had no way to say
 # what a later version had changed. Newest first; the cover prints the top row.
 PAPER_CHANGES = [
+    ("v1.3", "2026-11-11",
+     "Three things found by stress-testing the paper before sending it to anyone. "
+     "A pair is a sale and a lease in the same building, not the same unit, and no "
+     "earlier edition said so: section 4 now measures what the size mismatch is "
+     "worth, per 坪 and on size-matched pairs. The national headline survives it; "
+     "the city comparison does not survive it unchanged, and the gap against the "
+     "listings figure is restated on a size-normalised basis, which is smaller in "
+     "the south. The hedge about city footprints is replaced by a measurement. And "
+     "the registry's lease-filing rule, asserted for three editions, is now cited "
+     "to the two statutes it comes from."),
     ("v1.2", "2026-11-04",
      "Tests the resemblance assumption that every rung above the support rung "
      "rests on, and publishes the result, which is that it only half holds: the "
@@ -411,7 +421,8 @@ def on_page(canvas, doc):
     canvas.setFont(F, 7.2)
     canvas.setFillColor(MUTED)
     if doc.page > 1:
-        canvas.drawString(20 * mm, 12 * mm, "Quants.tw housing pivot · final report")
+        canvas.drawString(20 * mm, 12 * mm,
+                          f"實價收益 · the visible range of Taiwan's rental yield · paper {PAPER_VERSION}")
         canvas.drawRightString(A4[0] - 20 * mm, 12 * mm, f"{doc.page}")
         canvas.setStrokeColor(RULE)
         canvas.setLineWidth(0.4)
@@ -468,8 +479,11 @@ def build(D):
     A(P("What 9,843 Taiwanese buildings say about rental yield, and about how little "
         "of the market any yield can describe", "title"))
     A(Spacer(1, 4))
-    A(P("The closing report on the 實價登錄 rental-yield project (2026-08-30 → 2026-09-26), "
-        "written on the day it was parked", "sub"))
+    # This used to read "written on the day it was parked", which stopped being a
+    # description of the document the first time it was revised.
+    A(P(f"A measurement of Taiwan's rental yield from 實價登錄 sales and leases, "
+        f"{meta['seasons'][0]}–{meta['seasons'][1]}. First written on 2026-09-29, the day the "
+        "project was parked; revised since, and §16 records how.", "sub"))
     A(Spacer(1, 16 * mm))
     A(tiles([(p2(h["yield"]), "median gross yield<br/>(building level)"),
              (p2(h["net"]), "median net yield<br/>(after four stated costs)"),
@@ -745,13 +759,51 @@ def build(D):
                if bm["mortgage"].get("typed") else "read from a pinned source file")],
            ["New mortgage (MOI)", p2(moi["mortgage"]["rate"]), moi["mortgage"]["period"],
             "all new loans nationally"]],
-          [38 * mm, 18 * mm, 30 * mm, FRAME_W - 86 * mm], right=(1,)))
+          [38 * mm, 18 * mm, 30 * mm, FRAME_W - 86 * mm], right=(1,), wrap=(3,)))
     A(P("A buyer financing with a mortgage in this window pays more in interest than the median "
         "priceable flat returns in net rent. The yield is below the cost of the money that bought it. "
         f"That is an arithmetic statement, not a verdict on whether the price is wrong: under the "
         f"user-cost identity {cite('himmelberg2005')} a low rent-price ratio can be a rational "
         "response to low real rates and expected appreciation, and nothing measured here settles "
         "which it is.", "note"))
+
+    zr = D["size_robust"]
+    zrat = zr["ratio"]
+    A(CondPageBreak(85 * mm))        # heading, paragraph and table travel together
+    A(P("The unit-size objection", "h2"))
+    A(P("A pair here is a sale and a lease in the same <i>building</i>, not the same unit, and the "
+        "headline divides total rent by total price. Nothing makes the two units the same size: a "
+        "leased studio set against a sold three-bedroom reads as a low yield, and the reverse as a "
+        "high one. No edition before v1.3 said so, and it is the first thing an appraiser would ask. "
+        f"{cite_t('bracke2015')} avoids the problem by matching the same property. This registry "
+        "carries no unit identifier, so the same building is as close as it gets — but what the "
+        "mismatch is worth can be measured, three ways:"))
+    A(tbl([["Reading", "median gross", "95% CI", "buildings", "pairs"],
+           ["Headline — total rent ÷ total price", p2(zr["headline"]["gross"]),
+            f"{boot['overall']['lo']:.2f}–{boot['overall']['hi']:.2f}",
+            n0(zr["headline"]["buildings"]), n0(zr["headline"]["pairs"])],
+           ["Per 坪 — rent per 坪 ÷ price per 坪, pair by pair", p2(zr["per_ping"]["gross"]),
+            f"{zr['per_ping']['lo']:.2f}–{zr['per_ping']['hi']:.2f}",
+            n0(zr["per_ping"]["buildings"]), n0(zr["per_ping"]["pairs"])],
+           [f"Size-matched — only pairs whose areas are within {zr['band'][0]:g}–{zr['band'][1]:g}×",
+            p2(zr["size_matched"]["gross"]),
+            f"{zr['size_matched']['lo']:.2f}–{zr['size_matched']['hi']:.2f}",
+            n0(zr["size_matched"]["buildings"]), n0(zr["size_matched"]["pairs"])]],
+          [80 * mm, 24 * mm, 24 * mm, 20 * mm, FRAME_W - 148 * mm], right=(1, 2, 3, 4),
+          wrap=(0,), size=7.8))
+    A(Spacer(1, 5))
+    A(P(f"<b>Nationally the headline holds.</b> The size-matched reading is the closest this "
+        "registry gets to a same-unit design, and it assumes nothing about how rent scales with "
+        f"floor area. It returns {zr['size_matched']['gross']:.2f}% on "
+        f"{zr['size_matched']['kept_buildings_pct']:.0f}% of the buildings, a shift of "
+        f"{pp(zr['size_matched']['shift_pp'])}; per 坪 moves it by {pp(zr['per_ping']['shift_pp'])}. "
+        "The reason is symmetry, not luck. Across pairs the median ratio of sold to leased area is "
+        f"{zrat['pair']['median']:.2f}; {zrat['pairs_sold_bigger_pct']:.0f}% of pairs have the sold "
+        f"unit larger than the band allows and {zrat['pairs_leased_bigger_pct']:.0f}% the leased one, "
+        "so the mismatches cancel in a median."))
+    A(P("<b>Locally it holds less well</b>, and the comparison below is where that matters. Where a "
+        "city's mismatches are not symmetric the three readings separate, so every city figure in "
+        "the next table is given all three ways and each gap is quoted as a range.", "note"))
 
     A(P("Against other published estimates", "h2"))
     A(P(f"Taiwan already has a rental-yield figure in circulation, and it is worth asking where it "
@@ -768,32 +820,59 @@ def build(D):
     A(P("The comparison city by city, which has not been made before:"))
     gp = sorted([c for c in D["counties"] if c["city"] in GPG_CITIES],
                 key=lambda c: -c["buildings"])
-    crows = [["City", "This paper", "95% CI", "buildings", f"GPG ({GPG_UPDATED})", "difference"]]
+    zc = {r["city"]: r for r in zr["counties"]}
+
+    def gaps(city):
+        """The gap against the listings figure under each reading, smallest first."""
+        g, r = GPG_CITIES[city], zc[city]
+        return sorted([r["headline"] - g, r["per_ping"] - g, r["size_matched"] - g])
+
+    crows = [["City", "headline", "95% CI", "per 坪", "size-matched", "buildings",
+              f"GPG ({GPG_UPDATED})", "gap, three readings"]]
     for c in gp:
-        g = GPG_CITIES[c["city"]]
-        ci = boot["county"].get(c["county"])
-        crows.append([c["city"], p2(c["yield"]),
+        r, ci = zc[c["city"]], boot["county"].get(c["county"])
+        lo_g, _mid, hi_g = gaps(c["city"])
+        crows.append([c["city"], p2(r["headline"]),
                       f"{ci['lo']:.2f}–{ci['hi']:.2f}" if ci else "—",
-                      n0(c["buildings"]), p2(g), pp(c["yield"] - g)])
-    A(tbl(crows, [26 * mm, 24 * mm, 26 * mm, 24 * mm, 32 * mm, FRAME_W - 132 * mm],
-          right=(1, 2, 3, 4, 5), size=7.8))
+                      p2(r["per_ping"]), p2(r["size_matched"]), n0(c["buildings"]),
+                      p2(GPG_CITIES[c["city"]]), f"{lo_g:+.2f} to {hi_g:+.2f}pp"])
+    A(tbl(crows, [17 * mm, 17 * mm, 22 * mm, 16 * mm, 22 * mm, 18 * mm, 27 * mm, FRAME_W - 139 * mm],
+          right=(1, 2, 3, 4, 5, 6, 7), size=7.4))
     A(Spacer(1, 5))
-    worst = max(gp, key=lambda c: c["yield"] - GPG_CITIES[c["city"]])
-    best = min(gp, key=lambda c: c["yield"] - GPG_CITIES[c["city"]])
-    A(P(f"The registered measure is higher in all five, by {pp(best['yield']-GPG_CITIES[best['city']])} "
-        f"in {best['city']} and {pp(worst['yield']-GPG_CITIES[worst['city']])} in {worst['city']}. The "
-        "two agree closely in the north and diverge going south. This is indicative and not "
-        "like-for-like: the listings figure covers apartments inside five city boundaries, this one "
-        "covers 4+ storey residential buildings across the whole county — which for 新北, 高雄 and 臺南 "
-        "includes a great deal of non-urban area — and the windows differ. The direction is "
-        "nonetheless the same everywhere, and the gap is largest where the listings platform has the "
-        "least coverage."))
+    worst = max(gp, key=lambda c: gaps(c["city"])[0])
+    best = min(gp, key=lambda c: gaps(c["city"])[2])
+    wl, _wm, wh = gaps(worst["city"])
+    bl, _bm, bh = gaps(best["city"])
+    wrow, wg = zc[worst["city"]], GPG_CITIES[worst["city"]]
+    A(P(f"The registered measure is higher in all five under all three readings: by {bl:+.2f} to "
+        f"{bh:+.2f}pp in {best['city']}, and by {wl:+.2f} to {wh:+.2f}pp in {worst['city']}. The two "
+        "sources agree closely in the north and diverge going south, and that ordering does not "
+        "depend on the reading. <b>The size of the southern gap does.</b> v1.1 and v1.2 quoted "
+        f"{worst['city']} at {pp(wrow['headline'] - wg)} from the headline reading alone. That is the "
+        f"top of the range and not the middle of it: once unit size is controlled the gap is "
+        f"{pp(wrow['per_ping'] - wg)} per 坪 and {pp(wrow['size_matched'] - wg)} on size-matched pairs. "
+        "§16 records the correction."))
+    fp = {(r["city"], r["part"]): r for r in zr["footprint"]}
+    tn_p, tn_c = fp[("臺南市", "city_proper")], fp[("臺南市", "former_county")]
+    kh_p, kh_c = fp[("高雄市", "city_proper")], fp[("高雄市", "former_county")]
+    A(P("Earlier editions also hedged that a municipality-wide median covers \"a great deal of "
+        "non-urban area\" that a listings site does not. That is checkable, because 臺南 and 高雄 each "
+        "merged with their county in 2010 and the old city limits are still district boundaries. In "
+        f"臺南 the pre-merger city proper yields {tn_p['headline']:.2f}% ({tn_p['per_ping']:.2f}% per "
+        f"坪, {n0(tn_p['buildings'])} buildings) against {tn_c['headline']:.2f}% "
+        f"({tn_c['per_ping']:.2f}%) in the former county: the wider footprint <i>lowers</i> the "
+        "municipal figure, so it hides part of the gap instead of creating it. In 高雄 it runs the "
+        f"other way and is small — {kh_p['headline']:.2f}% ({kh_p['per_ping']:.2f}%) in the city "
+        f"proper against {kh_c['headline']:.2f}% ({kh_c['per_ping']:.2f}%). What stays unlike-for-like "
+        "is the source and the window: asking prices against registered ones, and a 2026 snapshot "
+        "against eleven quarters."))
     A(P(f"Taipei is the one city with three independent estimates, and they agree. "
         f"{cite_t('yang2018')} estimate a Taipei gross rent multiplier of about 50 from 591 asking "
         "rents against 實價登錄 sales for 2013–2016, which inverts to a yield near 2.0% — an "
         "arithmetic inversion of their figure, not one they state. Global Property Guide gives "
         f"{p2(GPG_CITIES['臺北市'])} for 2026. This report gives "
-        f"{p2([c for c in gp if c['city']=='臺北市'][0]['yield'])}. Three methods, three windows, a "
+        f"{p2(zc['臺北市']['headline'])} ({zc['臺北市']['per_ping']:.2f}% per 坪, "
+        f"{zc['臺北市']['size_matched']:.2f}% size-matched). Three methods, three windows, a "
         "spread of about a tenth of a point."))
     A(P("Set against the bounds in §6 rather than against the point estimate: the current listings "
         "figure and the 2013–2016 multiplier both fall inside the resemblance interval, and the 1.57% "
@@ -824,11 +903,14 @@ def build(D):
           f"step. Orange: the registry itself (no lease on file), {law_pp:.1f}pp. Blue: this project's "
           f"quality filters, {ours_pp:.1f}pp combined. The law-side share of the loss is "
           f"{wf['law_share']}%."))
-    A(P("\"No lease on file\" is not the same as \"unregistered lease\". The registry only receives "
-        "leases filed through licensed rental-service and brokerage firms, and most of those buildings "
-        "are owner-occupied anyway. The point is that no amount of cleaning can recover a lease that "
-        f"was never filed. With every one of this project's filters removed, the ceiling is "
-        f"<b>{p2(wf['ceiling_pct'])}</b>."))
+    A(P("\"No lease on file\" is not the same as \"unregistered lease\", and the reason is in the law "
+        "rather than in the data. Only two duties to register a lease exist. A broker must register "
+        f"the leases it brokers or agents {cite('law_broker')}, and a master-lease business must "
+        f"register its subleases {cite('law_sublease')}, each within thirty days. A landlord and a "
+        "tenant who sign with each other directly have no duty at all, so their lease never reaches "
+        "the registry — and most of these buildings are owner-occupied anyway. No amount of cleaning "
+        "can recover a lease that was never filed. With every one of this project's filters removed, "
+        f"the ceiling is <b>{p2(wf['ceiling_pct'])}</b>."))
     A(P("Which buildings survive", "h2"))
     A(fig(hbars([("住宅大樓 tower", tw["match_rate"], None, None, ACCENT),
                  ("華廈 mid-rise", mr["match_rate"], None, None, ACCENT),
@@ -1420,6 +1502,13 @@ def build(D):
         ["Net histogram & sliders", "\"sliders move this chart\"", "they did not; fixed", "4-agent audit"],
         ["Auction registry share", "13.8% of buildings", "14.0% of lots (unit named)", "audit"],
         ["Room-share filter label", "\"room-shares\"", "also blanks and floor lets (5,964)", "data-cleaning audit"],
+        ["臺南 gap vs listings (§4)", pp(zc["臺南市"]["headline"] - GPG_CITIES["臺南市"]),
+         f"{pp(zc['臺南市']['per_ping'] - GPG_CITIES['臺南市'])} per 坪, "
+         f"{pp(zc['臺南市']['size_matched'] - GPG_CITIES['臺南市'])} size-matched",
+         "pre-send stress test (v1.3)"],
+        ["City footprint (§4)", "\"a great deal of non-urban area\"",
+         "measured: 臺南's city proper yields more than its former county", "pre-send stress test (v1.3)"],
+        ["Lease-filing rule (§5)", "asserted", "cited to the two statutes", "pre-send stress test (v1.3)"],
     ]
     A(tbl(reg, [40 * mm, 42 * mm, 48 * mm, FRAME_W - 130 * mm], wrap=(0, 1, 2, 3), size=7.6))
     A(Spacer(1, 6))
@@ -1561,6 +1650,7 @@ def build(D):
         "pricerent": "Price and rent measured on the same property",
         "taiwan": "Taiwan",
         "method": "Method: attribution, and intervals under clustering",
+        "law": "The law the registry's coverage rests on",
         "data": "Compared against — data, not literature",
     }
     for g in GROUP_ORDER:
@@ -1569,10 +1659,11 @@ def build(D):
             continue
         A(P(heads[g], "h2"))
         for _k, r in rows:
-            A(KeepTogether([
-                P(f"{r['full']} ({r['year']}). <b>{r['title']}</b>. <i>{r['where']}</i>."),
-                P(r["why"], "note"),
-            ]))
+            block = [P(f"{byline(r)}. <b>{r['title']}</b>. <i>{r['where']}</i>.")]
+            if r.get("quote"):
+                block.append(P(f"「{r['quote']}」", "note"))
+            block.append(P(r["why"], "note"))
+            A(KeepTogether(block))
     # Derive, don't type, applied to the bibliography: a work nothing cites is
     # either a citation that got dropped or decoration, and the build refuses
     # to produce a paper with either. cite() raises on the other direction.
