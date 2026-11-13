@@ -131,7 +131,7 @@ python src/housing_final_report.py       # rebuilds the paper      -> docs/
 python src/housing_final_report_zh.py    # rebuilds the 中文版     -> docs/
 python src/housing_brief.py              # the two-page brief      -> docs/
 python src/housing_brief_zh.py           # the 中文版 brief        -> docs/
-pytest tests/ -q                         # 326 tests
+pytest tests/ -q                         # 328 tests
 ```
 
 All four documents read the same `housing_data.json`, so they cannot disagree
@@ -184,7 +184,7 @@ they move independently:
 | 1.1 | v1.0 | the archive gained the Traditional Chinese edition; no claim moved |
 | 1.2 | v1.1 | references, the comparison above, a rewritten §18, payload v2.9 |
 | 1.3 | v1.2 | the resemblance assumption tested and found to half fail; payload v2.10 |
-| 1.4 | v1.3 | the unit-size objection measured, the city gaps restated as ranges, the lease-filing rule cited to statute; payload v2.12 |
+| 1.4 | v1.3 | the unit-size objection measured, the city gaps restated as ranges, the lease-filing rule cited to statute, the mortgage rate read from a pinned file; payload v2.13 |
 
 ## Source and licence
 

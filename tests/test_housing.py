@@ -3719,17 +3719,17 @@ def test_the_age_comparison_counts_the_same_unmatched_buildings_as_the_rest_of_t
 
 
 def test_the_typed_mortgage_rate_cannot_go_quietly_stale(payload):
-    """MORTGAGE_RATE is the one figure in the benchmark strip that is typed into
-    underwrite.py rather than read from a pinned file — its two siblings come
-    from data/ref/cbc/ and carry data-derived period labels. It is compared
-    against the headline net yield on the page and printed in the PDF's
-    reference table, so a constant that silently ages is a published number that
-    silently becomes wrong.
+    """The mortgage rate is compared against the headline net yield on the page
+    and printed in the PDF's reference table, so a figure that silently ages is
+    a published number that silently becomes wrong.
 
-    There is no free CBC series for 五大銀行新承做購屋貸款 in this repo to derive
-    it from, so this asserts the next best thing: the typed period must not fall
-    behind the data window. When it does, the test fails and someone has to go
-    and look at the rate rather than shipping last year's.
+    Since payload 2.13 it is read from a pinned CBC file rather than typed
+    (tests/test_sources.py), but that file has no stable URL -- each month is a
+    new release page -- so it cannot refresh itself and can still fall behind.
+    This is the guard for that: the pinned month must not trail the data window
+    by more than a year. When it does, pin a newer release with
+    fetch_cbc.pin_new_loans(). (The name still says "typed"; the hazard it
+    guards outlived the constant.)
     """
     m = payload["mortgage"]
     assert m["rate"] and 0 < m["rate"] < 10
@@ -3745,9 +3745,9 @@ def test_the_typed_mortgage_rate_cannot_go_quietly_stale(payload):
     # Four quarters of slack: the CBC publishes monthly, so a rate more than a
     # year behind the last season this site reports is not a current comparison.
     assert rate_q >= win_q - 4, (
-        f"the typed mortgage rate is from {m['period_zh']} while the window ends "
-        f"at {last} — re-read https://www.cbc.gov.tw/tw/lp-528-1.html and update "
-        "MORTGAGE_RATE, or wire the series in properly")
+        f"the pinned mortgage file ends at {m['period_zh']} while the window ends "
+        f"at {last} — download the newest release from "
+        "https://www.cbc.gov.tw/tw/lp-528-1.html and pin it with fetch_cbc.pin_new_loans()")
     # and it must not claim to be from the future
     assert rate_q <= win_q + 4, f"{m['period_zh']} is ahead of the window {last}"
 

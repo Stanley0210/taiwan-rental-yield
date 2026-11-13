@@ -22,9 +22,9 @@ authors:
 #   deposit 1.3  paper v1.2: the resemblance assumption the headline interval
 #                rests on is tested, and half fails; payload v2.10
 #   deposit 1.4  paper v1.3: the unit-size objection measured, city gaps
-#                restated as ranges, the filing rule cited to statute; payload v2.12
+#                restated as ranges, the filing rule cited to statute; payload v2.13
 version: "1.4"
-date-released: "2026-11-12"
+date-released: "2026-11-13"
 license: CC-BY-4.0
 # Concept DOI: always resolves to the newest version. Each release also
 # has its own version DOI (v1.0 is 10.5281/zenodo.23902647).

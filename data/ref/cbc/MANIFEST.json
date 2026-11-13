@@ -6,6 +6,14 @@
     "sha256": "61081da8d1be0065a8d59354a8d9d2b0778c10e6007028e1f219753d9cd20c24",
     "url": "https://www.cbc.gov.tw/public/data/OpenData/A13Rate.csv"
   },
+  "five_bank_new_loans.ods": {
+    "bytes": 55099,
+    "fetched": "2026-11-13",
+    "licence": "政府資料開放授權條款-第1版",
+    "listing": "https://www.cbc.gov.tw/tw/lp-528-1.html",
+    "sha256": "433f83cac11daaa03cddcf80cdb3ef2cf2faa55b37c2f0f1f32981810e8fd8f5",
+    "url": "https://www.cbc.gov.tw/tw/dl-227916-4a7d1e8c88df4ff2a86689b36461bf74.html"
+  },
   "webF1.csv": {
     "bytes": 1456,
     "catalogue": "https://data.gov.tw/dataset/6022",

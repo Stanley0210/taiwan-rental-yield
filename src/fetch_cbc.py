@@ -141,6 +141,110 @@ def fetch(name, cache_dir=None, force=False):
         return ""
 
 
+# ── 五大銀行新承做放款金額與利率 ─────────────────────────────────────────────
+# The new-mortgage rate the page sets beside the net yield. Unlike the two
+# files above this one has NO stable URL: the CBC publishes each month as a new
+# release page with freshly named ODS / XLS / PDF attachments, so fetch() cannot
+# refresh it. That is why it was a hand-typed constant until payload 2.13, and
+# why 2.11 wrongly concluded the series "exists only as a PDF" -- the release
+# page was never opened, only the listing.
+#
+# So it is pinned by hand and read by code: download the newest release's ODS
+# from NEW_LOANS_LISTING, hand it to pin_new_loans(), and the manifest records
+# where it came from. Every month back to 83/07 is in the one file, which is
+# what lets a test check that the pinned file still reproduces the figure that
+# used to be typed.
+NEW_LOANS = "five_bank_new_loans.ods"
+NEW_LOANS_LISTING = "https://www.cbc.gov.tw/tw/lp-528-1.html"
+_ODS_T = "{urn:oasis:names:tc:opendocument:xmlns:table:1.0}"
+_ODS_P = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p"
+
+
+def _ods_rows(path):
+    """First sheet of an ODS as lists of cell strings. Standard library only:
+    an .ods is a zip with a content.xml, and nothing in it is executed."""
+    import xml.etree.ElementTree as ET
+    import zipfile
+    root = ET.fromstring(zipfile.ZipFile(path).read("content.xml"))
+    sheet = next(root.iter(_ODS_T + "table"))
+    out = []
+    for r in sheet.iter(_ODS_T + "table-row"):
+        cells = []
+        for c in r:
+            if not c.tag.endswith("table-cell"):
+                continue
+            rep = int(c.get(_ODS_T + "number-columns-repeated", "1"))
+            txt = "".join("".join(p.itertext()) for p in c.iter(_ODS_P)).strip()
+            cells += [txt] * min(rep, 40)
+        while cells and cells[-1] == "":
+            cells.pop()
+        if cells:
+            out.append(cells)
+    return out
+
+
+def load_new_loans(path=None):
+    """Monthly 購屋貸款 amount and rate: [{year, month, rate, amount_m}], oldest first.
+
+    The columns are found by their headers, never by position -- a table that
+    gains a column must fail here rather than quietly return a different loan
+    type's rate.
+    """
+    import re
+    path = path or os.path.join(CACHE, NEW_LOANS)
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"{path} is not pinned; see NEW_LOANS_LISTING")
+    rows = _ods_rows(path)
+    head = next(i for i, r in enumerate(rows) if "購屋貸款" in r)
+    col = rows[head].index("購屋貸款")
+    sub = rows[head + 1]
+    if sub[col] != "金額" or sub[col + 1] != "利率":
+        raise ValueError(f"unexpected sub-header under 購屋貸款: {sub[col:col + 2]}")
+    out = []
+    for r in rows[head + 2:]:
+        m = re.match(r"^(\d{2,3})/(\d{1,2})$", r[0]) if r else None
+        if not m or len(r) <= col + 1:
+            continue
+        try:
+            out.append({"year": int(m.group(1)), "month": int(m.group(2)),
+                        "rate": float(r[col + 1]),
+                        "amount_m": int(r[col].replace(",", ""))})
+        except ValueError:
+            continue
+    if not out:
+        raise ValueError("no monthly rows parsed from the new-loans table")
+    return out
+
+
+def load_mortgage_new(path=None):
+    """The latest month's new house-purchase loan rate at the five big banks."""
+    series = load_new_loans(path)
+    last = series[-1]
+    return dict(last, period=f"{last['year']:03d}{last['month']:02d}", n_months=len(series))
+
+
+def pin_new_loans(src, url, cache_dir=None):
+    """Copy a downloaded release into the cache and record where it came from.
+
+    `url` is the attachment's own download link on the release page; it changes
+    every month, which is the whole reason this is not in FILES.
+    """
+    cache_dir = cache_dir or CACHE
+    with open(src, "rb") as f:
+        blob = f.read()
+    load_new_loans(src)                      # refuse to pin a file that does not parse
+    with open(os.path.join(cache_dir, NEW_LOANS), "wb") as f:
+        f.write(blob)
+    man = manifest(cache_dir)
+    man[NEW_LOANS] = {"url": url, "listing": NEW_LOANS_LISTING,
+                      "fetched": datetime.date.today().isoformat(),
+                      "sha256": _sha(blob), "bytes": len(blob), "licence": LICENCE}
+    with open(os.path.join(cache_dir, "MANIFEST.json"), "w", encoding="utf-8") as f:
+        json.dump(man, f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\n")
+    return os.path.join(cache_dir, NEW_LOANS)
+
+
 def roc_month(p):
     """'11411' -> ('114年11月', 'Nov 2025')."""
     y, m = int(p[:3]), int(p[3:5])

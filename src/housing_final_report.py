@@ -55,13 +55,13 @@ OUT = os.environ.get("REPORT_OUT", os.path.join(ROOT, "docs", "HOUSING_FINAL_REP
 # The citable edition of this write-up. The payload carries its own version;
 # these two move independently and the cover prints both.
 PAPER_VERSION = "v1.3"
-PAPER_DATE = "2026-11-11"
+PAPER_DATE = "2026-11-13"
 
 # Section 16 registers corrections to numbers. This registers editions of the
 # write-up, which is a different thing and was missing: v1.0 had no way to say
 # what a later version had changed. Newest first; the cover prints the top row.
 PAPER_CHANGES = [
-    ("v1.3", "2026-11-11",
+    ("v1.3", "2026-11-13",
      "Three things found by stress-testing the paper before sending it to anyone. "
      "A pair is a sale and a lease in the same building, not the same unit, and no "
      "earlier edition said so: section 4 now measures what the size mismatch is "
@@ -70,7 +70,9 @@ PAPER_CHANGES = [
      "listings figure is restated on a size-normalised basis, which is smaller in "
      "the south. The hedge about city footprints is replaced by a measurement. And "
      "the registry's lease-filing rule, asserted for three editions, is now cited "
-     "to the two statutes it comes from."),
+     "to the two statutes it comes from. The new-mortgage reference rate is read "
+     "from a pinned central-bank file instead of typed, which also brings it from "
+     "May to September 2026."),
     ("v1.2", "2026-11-04",
      "Tests the resemblance assumption that every rung above the support rung "
      "rests on, and publishes the result, which is that it only half holds: the "
@@ -754,9 +756,7 @@ def build(D):
            ["Rediscount rate", p2(bm["rediscount"]["rate"]), bm["rediscount"]["period_en"],
             "policy rate, not investable"],
            ["New mortgage (CBC)", f"{bm['mortgage']['rate']:.3f}%", bm["mortgage"]["period_en"],
-            "five big banks, new house-purchase loans — "
-            + ("transcribed, not derived: the CBC publishes no CSV for this series"
-               if bm["mortgage"].get("typed") else "read from a pinned source file")],
+            "five big banks, new house-purchase loans"],
            ["New mortgage (MOI)", p2(moi["mortgage"]["rate"]), moi["mortgage"]["period"],
             "all new loans nationally"]],
           [38 * mm, 18 * mm, 30 * mm, FRAME_W - 86 * mm], right=(1,), wrap=(3,)))
@@ -1580,11 +1580,13 @@ def build(D):
         "<i>requirements-dev.txt</i> now also carries pytest, which lived nowhere despite being the "
         "command the README leads with, and CI installs from those pins on a machine that has never "
         "seen the project, verifies the payload hash, runs the suite and rebuilds all four documents.",
-        "<b>The mortgage rate says what it is.</b> It is still transcribed, because the CBC publishes "
-        "五大銀行新承做放款金額與利率 as a per-release PDF and offers no open-data CSV: "
-        "<i>A13Rate.csv</i> carries the posted 指數房貸 rate, a different series, and 內政部's file is "
-        "quarterly and covers all lenders. So it now declares itself typed, and both editions print "
-        "that beside the figure rather than letting it pass for derived.",
+        f"<b>The mortgage rate is read, not typed.</b> v1.2 concluded it had to stay a transcription "
+        "because the CBC publishes 五大銀行新承做放款金額與利率 only as a PDF. That was wrong: the "
+        "listing page has no data file, but each month's release page carries a spreadsheet with "
+        "the whole series back to 1994, and nobody had opened a release page. It is now pinned and "
+        "hashed beside its two siblings, and the figure is read from it. The pinned file gives "
+        "exactly the 2.322% that used to be typed for May 2026, so the old number was never wrong — "
+        f"only unverifiable, and four months stale. It now reads {bm['mortgage']['period_en']}.",
     ])))
     A(P("Found while preparing this edition", "h2"))
     A(callout(
@@ -1608,12 +1610,10 @@ def build(D):
         "<b>quants.tw itself is still unbound on Railway</b>, so the interactive version of this work "
         "— the sliders, the per-district pages — runs nowhere. The static page carries the findings; "
         "it does not carry the tool. The runbook is <i>docs/RAILWAY_GO_LIVE.md</i> on the housing branch.",
-        f"<b>The mortgage figure is behind its source.</b> It reads "
-        f"{bm['mortgage']['period_en']}, and the CBC has since published through 115.9 "
-        "(September 2026). A transcribed number cannot refresh itself, which is the standing cost of "
-        "a series with no machine-readable source; it should be re-read whenever this paper is "
-        "revised. It is used only as a reference rate beside the net yield, never inside a "
-        "calculation.",
+        "<b>The mortgage file cannot refresh itself.</b> It has no stable URL — each month is a new "
+        "release page — so a newer month means someone pinning a newer file. A test fails when the "
+        "pinned month falls a year behind the data window; until then the staleness is visible in "
+        "the file's manifest entry rather than hidden in a constant.",
         "<b>Per-building URLs</b> (/housing/b/&lt;key&gt;) were never built, because there was no live "
         "site to link to.",
         "<b>The rental-vacancy level</b> remains an assumption; only its shape is measured (§14).",

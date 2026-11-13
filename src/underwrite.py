@@ -50,7 +50,7 @@ OUT = os.environ.get("LVR_OUT", "housing_data.json")
 # can tell whether they are looking at different code or different data --
 # 實價登錄 grows every quarter, and without this a rebuild that disagrees is
 # indistinguishable from a bug.
-PAYLOAD_VERSION = "2.12"
+PAYLOAD_VERSION = "2.13"
 
 MATCH_WINDOW_Q = 4          # +/- quarters a sale and a lease may be apart
 
@@ -2657,7 +2657,10 @@ def ref_manifest(ref_dirs=REF_DIRS, extra=REF_EXTRA):
     import json
     paths = []
     for d in ref_dirs:
-        paths += sorted(glob.glob(os.path.join(d, "*.csv")))
+        # .ods as well as .csv: the CBC new-loans series is only published as a
+        # spreadsheet, and a reference file the build reads but does not hash is
+        # exactly the hole this manifest exists to close.
+        paths += sorted(glob.glob(os.path.join(d, "*.csv")) + glob.glob(os.path.join(d, "*.ods")))
     paths += [p for p in extra if os.path.exists(p)]
     files, h = [], hashlib.sha256()
     fasc = _fasc_digest()
@@ -2912,37 +2915,41 @@ def dead_hypothesis_block(b):
 # the net yield can be read against something. It is not modelled and not a
 # slider: it is quoted, with its source and its month, and it goes stale — check
 # https://www.cbc.gov.tw/tw/lp-528-1.html before trusting the date below.
-# ── A TRANSCRIBED FIGURE, AND WHY IT HAS TO BE ONE ──────────────────────────
-# Its two siblings are derived: the 1-year deposit rate comes out of
-# data/ref/cbc/A13Rate.csv and the rediscount rate out of webF1.csv, both
-# hashed into the provenance block. This one cannot be, and section 18 listed
-# that as an open item without saying why.
+# ── THE MORTGAGE RATE IS READ, NOT TYPED ────────────────────────────────────
+# Its two siblings come out of data/ref/cbc/A13Rate.csv and webF1.csv. Until
+# payload 2.13 this one was a typed dict, {"rate": 2.322, "period": 115年5月},
+# and payload 2.11 made it declare itself "typed" on the belief that the CBC
+# publishes 五大銀行新承做放款金額與利率 only as a PDF.
 #
-# The why: the CBC publishes 五大銀行新承做放款金額與利率 as a per-release PDF
-# attachment with a per-release URL, and offers no open-data CSV for it.
-# A13Rate.csv looks like a candidate and is not -- it carries 指數房貸, the
-# POSTED index-mortgage rate, which is a different series, and it ends before
-# this period. 內政部's mortgage_rate_new.csv is also a different series
-# (quarterly, all lenders, by county) and the payload already reads it
-# separately as moi.mortgage.
-#
-# So it declares itself instead of pretending. "typed": True travels into the
-# payload, both editions print the word beside the figure, and
-# tests/test_sources.py fails if any figure marked typed loses its source or
-# its period. That is the same treatment section 4 gives the Global Property
-# Guide comparison: a transcription a reader can go and check, rather than a
-# number that looks derived and is not.
-MORTGAGE_RATE = {
-    "rate": 2.322,
-    "typed": True,
-    "source_format": "per-release PDF; the CBC publishes no open-data CSV for this series",
-    "period_zh": "115年5月",
-    "period_en": "May 2026",
-    "src_zh": "中央銀行「五大銀行新承做購屋貸款」加權平均利率",
-    "src_en": "Central Bank of the ROC, weighted average rate on new house-purchase "
-              "lending by the five major banks",
-    "url": "https://www.cbc.gov.tw/tw/lp-528-1.html",
-}
+# That belief was wrong, and wrong in an instructive way: the LISTING page has
+# no data file, so it looked like there was none, but each month's RELEASE page
+# carries an ODS with the whole series back to 83/07. Nobody had opened a
+# release page. The ODS is now pinned under data/ref/cbc/ and hashed into
+# provenance like its siblings (fetch_cbc.NEW_LOANS), and this reads the latest
+# month from it. Two things came out of that:
+#   - the pinned file gives 2.322 for 115/5, so the old transcription was
+#     right -- the figure was never wrong, only unverifiable;
+#   - it had gone four months stale, which a derived figure cannot do silently:
+#     the staleness is now a property of which release is pinned, visible in
+#     MANIFEST.json, and a test fails when it falls behind the data window.
+# The file still has no stable URL, so refreshing it means pinning a newer
+# release by hand (fetch_cbc.pin_new_loans). That is a refresh step, not a
+# typed number.
+def mortgage_rate():
+    import fetch_cbc as C
+    m = C.load_mortgage_new()
+    zh, en = C.roc_month(m["period"])
+    return {
+        "rate": m["rate"],
+        "period_zh": zh, "period_en": en,
+        "period_iso": f"{m['year'] + 1911}-{m['month']:02d}",
+        "amount_m": m["amount_m"],
+        "src_zh": "中央銀行「五大銀行新承做購屋貸款」加權平均利率",
+        "src_en": "Central Bank of the ROC, weighted average rate on new house-purchase "
+                  "lending by the five major banks",
+        "url": C.NEW_LOANS_LISTING,
+        "source_file": "data/ref/cbc/" + C.NEW_LOANS,
+    }
 
 
 # ── the walk-up hypothesis, settled ──────────────────────────────────────────
@@ -3260,7 +3267,7 @@ def walkup_resolution_block(b, ub, uni_rows, pairs, rents=None,
     }
 
 
-def benchmarks_block(mortgage=MORTGAGE_RATE):
+def benchmarks_block(mortgage=None):
     """Three reference rates to set beside the net yield. Rates in percent.
 
     "Compared to what" is the question the page never answered. These are the
@@ -3281,6 +3288,7 @@ def benchmarks_block(mortgage=MORTGAGE_RATE):
         import fetch_cbc as C
         dep = C.load_deposit_1y()
         red = C.load_rediscount()
+        mortgage = mortgage or mortgage_rate()
     except Exception as e:
         print(f"[uw] benchmarks skipped: {e}")
         return []
@@ -3329,7 +3337,6 @@ def benchmarks_block(mortgage=MORTGAGE_RATE):
         {
             "key": "mortgage",
             **mortgage,
-            "period_iso": "2026-05",
             "note_zh": "借款人付的利率，不是存款人收的；與上方「借錢的成本」是同一個數字，這裡只是並列。",
             "note_en": ("What a borrower pays, not what a saver earns; the same number as the "
                         "section above, repeated here only to sit beside the other two."),
@@ -4847,7 +4854,7 @@ def build(last_season=LAST_SEASON):
         "marginal_mechanism": mech,
         "districts": district_block(b),
         "counties": county_block(b),
-        "mortgage": MORTGAGE_RATE,
+        "mortgage": mortgage_rate(),
         # Three reference rates beside the net yield. Different denominators:
         # set side by side, never differenced (the page rule).
         "benchmarks": benchmarks_block(),
